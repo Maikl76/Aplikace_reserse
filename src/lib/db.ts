@@ -89,6 +89,31 @@ export async function mergeProject<K extends NestedKey>(id: string, key: K, part
     });
 }
 
+/** Uloží vlastní znění jednoho oddílu textu práce (prázdný text = vrátit vygenerovaný). */
+export async function setSectionText(id: string, sectionId: string, text: string): Promise<void> {
+  await db.projects
+    .where('id')
+    .equals(id)
+    .modify((p) => {
+      p.manuscript = { ...p.manuscript, sections: { ...p.manuscript.sections, [sectionId]: text } };
+      p.updatedAt = nowIso();
+    });
+}
+
+/** Uloží hodnocení GRADE jednoho výstupu. */
+export async function setGrade(id: string, outcomeId: string, rating: Project['synthesis']['grade'][string] | null): Promise<void> {
+  await db.projects
+    .where('id')
+    .equals(id)
+    .modify((p) => {
+      const grade = { ...p.synthesis.grade };
+      if (rating) grade[outcomeId] = rating;
+      else delete grade[outcomeId];
+      p.synthesis = { ...p.synthesis, grade };
+      p.updatedAt = nowIso();
+    });
+}
+
 export async function deleteProject(id: string): Promise<void> {
   await db.transaction('rw', db.projects, db.records, db.files, async () => {
     await db.records.where('projectId').equals(id).delete();
@@ -132,6 +157,23 @@ export async function addSearchResults(project: Project, run: Omit<SearchRun, 'i
     await db.projects.update(project.id, { searches: [...(fresh?.searches ?? []), search], updatedAt: nowIso() });
   });
   return search;
+}
+
+export const MANUAL_SOURCE = 'Jiné zdroje (ručně)';
+
+/** Přidá jeden ručně zapsaný záznam; všechny ruční záznamy sdílejí jeden řádek deníku. */
+export async function addManualRecord(project: Project, bib: BibRecord): Promise<void> {
+  const fresh = await db.projects.get(project.id);
+  const existing = fresh?.searches.find((s) => s.via === 'manual' && s.source === MANUAL_SOURCE);
+  if (!existing) {
+    await addSearchResults(project, { source: MANUAL_SOURCE, via: 'manual', query: 'Záznamy doplněné ručně (seznamy literatury, doporučení, šedá literatura).', hits: null, note: '' }, [bib]);
+    return;
+  }
+  await db.transaction('rw', db.projects, db.records, async () => {
+    await db.records.add(toRecord(bib, project.id, existing));
+    const now = await db.projects.get(project.id);
+    await db.projects.update(project.id, { searches: (now?.searches ?? []).map((s) => (s.id === existing.id ? { ...s, imported: s.imported + 1 } : s)), updatedAt: nowIso() });
+  });
 }
 
 /** Odstraní hledání z deníku včetně záznamů, které přineslo. */
