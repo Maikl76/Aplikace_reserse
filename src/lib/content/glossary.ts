@@ -1,0 +1,55 @@
+// Slovníček pojmů používaných v aplikaci.
+
+export interface GlossaryEntry {
+  term: string;
+  english?: string;
+  text: string;
+}
+
+export const GLOSSARY: GlossaryEntry[] = [
+  { term: 'AMSTAR 2', text: 'Nástroj se 16 položkami pro hodnocení kvality provedení systematických přehledů. Celkovou důvěru určují nedostatky v sedmi kritických oblastech.' },
+  { term: 'Booleovské operátory', english: 'Boolean operators', text: 'AND, OR a NOT. OR rozšiřuje hledání (synonyma), AND ho zužuje (průnik pojmů), NOT vylučuje – používá se opatrně, protože snadno vyřadí i relevantní záznamy.' },
+  { term: 'CCA', english: 'corrected covered area', text: 'Míra překryvu primárních studií mezi systematickými přehledy v procentech. Do 5 % mírný, 6–10 % střední, 11–15 % vysoký a nad 15 % velmi vysoký překryv.' },
+  { term: 'Citlivostní analýza', english: 'sensitivity analysis', text: 'Opakování analýzy za jiných předpokladů (například bez jedné studie nebo bez studií s vysokým rizikem zkreslení), které ukáže, jak pevný výsledek je.' },
+  { term: 'Deskriptor', text: 'Termín řízeného slovníku, kterým databáze jednotně označuje téma článku bez ohledu na slova použitá autorem.' },
+  { term: 'Duplicita', text: 'Tentýž článek nalezený ve více databázích. Před tříděním se duplicity odstraňují.' },
+  { term: 'Eggerův test', text: 'Statistický test asymetrie trychtýřového grafu. Při méně než zhruba deseti studiích má malou sílu a nedoporučuje se z něj vyvozovat závěry.' },
+  { term: 'Extrakce dat', english: 'data extraction', text: 'Vypsání potřebných údajů ze zařazených studií do jednotného formuláře.' },
+  { term: 'GRADE', text: 'Postup hodnocení jistoty důkazů pro jednotlivý výstup (vysoká, střední, nízká, velmi nízká). Jistotu snižuje riziko zkreslení, nekonzistence, nepřímost, nepřesnost a publikační zkreslení.' },
+  { term: 'Hedgesovo g', text: 'Standardizovaný rozdíl průměrů opravený o zkreslení v malých souborech. Orientačně: 0,2 malý, 0,5 střední, 0,8 velký účinek.' },
+  { term: 'Heterogenita', text: 'Rozdílnost výsledků studií větší, než jakou vysvětlí náhoda. Může být klinická (populace, intervence), metodická (design) a statistická.' },
+  { term: 'I²', text: 'Podíl celkové variability odhadů účinku, který připadá na skutečné rozdíly mezi studiemi, nikoli na náhodu. Není to míra velikosti těchto rozdílů – tu vyjadřuje τ² a predikční interval.' },
+  { term: 'Interval spolehlivosti', english: 'confidence interval, CI', text: 'Rozmezí hodnot, které jsou s daty slučitelné. Pokud 95% interval obsahuje hodnotu „bez účinku“ (0 u rozdílů, 1 u poměrů), výsledek není statisticky významný na hladině 5 %.' },
+  { term: 'Kritéria způsobilosti', english: 'eligibility criteria', text: 'Předem daná pravidla, podle kterých se studie do přehledu zařazují nebo vyřazují.' },
+  { term: 'Lesní graf', english: 'forest plot', text: 'Graf metaanalýzy: každá studie je čtverec (odhad účinku, velikost odpovídá váze) s úsečkou (interval spolehlivosti); kosočtverec dole je souhrnný odhad.' },
+  { term: 'MeSH', english: 'Medical Subject Headings', text: 'Řízený slovník, kterým jsou označeny záznamy v PubMedu. Hledání přes MeSH najde článek i tehdy, když autor použil jiná slova.' },
+  { term: 'Metaanalýza', text: 'Statistické sloučení výsledků více studií do jednoho odhadu účinku. Je součástí systematického přehledu, nikoli samostatným typem rešerše.' },
+  { term: 'Model s náhodnými efekty', english: 'random-effects model', text: 'Předpokládá, že skutečný účinek se mezi studiemi liší, a odhaduje jeho průměr. Dává širší interval spolehlivosti a menším studiím relativně větší váhu.' },
+  { term: 'Model s pevným efektem', english: 'fixed-effect model', text: 'Předpokládá, že všechny studie odhadují tentýž skutečný účinek a liší se jen náhodou.' },
+  { term: 'PCC', text: 'Rámec otázky mapovacího přehledu: populace, koncept, kontext.' },
+  { term: 'PICO', text: 'Rámec otázky o účinku: populace, intervence, srovnání (comparison), výstup (outcome).' },
+  { term: 'Poměr šancí', english: 'odds ratio, OR', text: 'Poměr šance na událost ve dvou skupinách. Hodnota 1 znamená žádný rozdíl.' },
+  { term: 'Predikční interval', english: 'prediction interval', text: 'Rozmezí, ve kterém lze čekat skutečný účinek v nové, podobné studii. Na rozdíl od intervalu spolehlivosti zahrnuje i rozdíly mezi studiemi.' },
+  { term: 'PRIOR', text: 'Standard pro psaní zprávy o přehledu přehledů (zastřešujícím přehledu).' },
+  { term: 'PRISMA 2020', text: 'Standard pro psaní zprávy o systematickém přehledu: kontrolní seznam s 27 položkami a vývojový diagram.' },
+  { term: 'PRISMA-ScR', text: 'Rozšíření PRISMA pro mapovací přehledy (22 položek).' },
+  { term: 'PROSPERO', text: 'Mezinárodní registr protokolů systematických přehledů se zdravotními výstupy.' },
+  { term: 'Protokol', text: 'Předem sepsaný plán přehledu: otázka, kritéria, zdroje, postup výběru, hodnocení a syntézy.' },
+  { term: 'Publikační zkreslení', english: 'publication bias', text: 'Studie s významnými výsledky se publikují snáze než studie bez nich, takže publikovaná literatura může účinek nadhodnocovat.' },
+  { term: 'Q test', text: 'Cochranův test heterogenity. Při malém počtu studií má malou sílu, při velkém odhalí i nepodstatné rozdíly.' },
+  { term: 'Relativní riziko', english: 'risk ratio, RR', text: 'Poměr rizika události ve dvou skupinách. Hodnota 1 znamená žádný rozdíl.' },
+  { term: 'REML', english: 'restricted maximum likelihood', text: 'Metoda odhadu rozptylu mezi studiemi (τ²). Dnes se doporučuje místo starší metody DerSimoniana a Lairda.' },
+  { term: 'RIS', text: 'Textový formát pro přenos bibliografických záznamů mezi databázemi a citačními manažery.' },
+  { term: 'Riziko zkreslení', english: 'risk of bias', text: 'Pravděpodobnost, že způsob provedení studie systematicky posunul její výsledek.' },
+  { term: 'RoB 2', text: 'Nástroj Cochrane pro hodnocení rizika zkreslení randomizovaných studií v pěti doménách.' },
+  { term: 'ROBINS-I', text: 'Nástroj pro hodnocení rizika zkreslení nerandomizovaných studií intervencí v sedmi doménách.' },
+  { term: 'ROBIS', text: 'Nástroj pro hodnocení rizika zkreslení systematických přehledů ve čtyřech doménách.' },
+  { term: 'SANRA', text: 'Šestipoložková škála kvality narativních přehledových článků.' },
+  { term: 'Směrodatná chyba', english: 'standard error, SE', text: 'Míra přesnosti odhadu (například průměru). Nezaměňovat se směrodatnou odchylkou: SE = SD / √n.' },
+  { term: 'Směrodatná odchylka', english: 'standard deviation, SD', text: 'Míra rozptýlení hodnot jednotlivých účastníků kolem průměru.' },
+  { term: 'Šedá literatura', english: 'grey literature', text: 'Zdroje mimo běžné vydavatelské kanály: kvalifikační práce, zprávy, konferenční příspěvky, registry studií.' },
+  { term: 'τ² (tau kvadrát)', text: 'Odhad rozptylu skutečných účinků mezi studiemi v modelu s náhodnými efekty.' },
+  { term: 'Trychtýřový graf', english: 'funnel plot', text: 'Graf odhadů účinku proti jejich přesnosti. Výrazná asymetrie může ukazovat na publikační zkreslení, má ale i jiné příčiny.' },
+  { term: 'Vývojový diagram', english: 'flow diagram', text: 'Schéma počtů záznamů v jednotlivých fázích výběru podle PRISMA.' },
+  { term: 'Zástupný znak', english: 'truncation, wildcard', text: 'Hvězdička nahrazující libovolnou koncovku: adolescen* najde adolescent, adolescents i adolescence.' },
+];
