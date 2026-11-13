@@ -125,6 +125,8 @@ export interface RecordItem {
   /** Hodnocení kvality: id položky → id úrovně. */
   quality: Record<string, string>;
   qualityOverall: string;
+  /** Zdůvodnění hodnocení kvality. */
+  qualityNote: string;
   /** Témata (id), ke kterým studie přispívá. */
   themes: string[];
   /** Zastřešující přehled: primární studie zahrnuté v tomto přehledu, jedna na řádek. */
@@ -231,6 +233,8 @@ export interface Project {
   protocol: Protocol;
   blocks: ConceptBlock[];
   searches: SearchRun[];
+  /** Dvojice záznamů, o kterých uživatel rozhodl, že duplicitami nejsou („id|id“). */
+  notDuplicates: string[];
   fields: FieldDef[];
   outcomes: OutcomeDef[];
   qualityTool: string;

@@ -27,6 +27,7 @@ function rec(over: Partial<RecordItem>): RecordItem {
     effects: {},
     quality: {},
     qualityOverall: '',
+    qualityNote: '',
     themes: [],
     primaryStudies: '',
     notes: '',

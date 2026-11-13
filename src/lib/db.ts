@@ -53,6 +53,7 @@ export function newProject(type: ReviewType, title: string): Project {
     },
     blocks: [],
     searches: [],
+    notDuplicates: [],
     fields: defaultFields(type),
     outcomes: [],
     qualityTool: conf.qualityTools[0] ?? '',
@@ -73,6 +74,19 @@ export async function createProject(type: ReviewType, title: string): Promise<Pr
 /** Uloží změny projektu. Vnořené objekty se předávají celé. */
 export async function patchProject(id: string, patch: Partial<Project>): Promise<void> {
   await db.projects.update(id, { ...patch, updatedAt: nowIso() });
+}
+
+type NestedKey = 'question' | 'protocol' | 'synthesis' | 'manuscript';
+
+/** Sloučí změny do vnořené části projektu; čte se čerstvý stav, takže se souběžné úpravy nepřepíšou. */
+export async function mergeProject<K extends NestedKey>(id: string, key: K, partial: Partial<Project[K]>): Promise<void> {
+  await db.projects
+    .where('id')
+    .equals(id)
+    .modify((p) => {
+      p[key] = { ...p[key], ...partial };
+      p.updatedAt = nowIso();
+    });
 }
 
 export async function deleteProject(id: string): Promise<void> {
@@ -101,6 +115,7 @@ export function toRecord(bib: BibRecord, projectId: string, search: Pick<SearchR
     effects: {},
     quality: {},
     qualityOverall: '',
+    qualityNote: '',
     themes: [],
     primaryStudies: '',
     notes: '',
@@ -136,6 +151,26 @@ export async function removeSearch(project: Project, searchId: string): Promise<
 
 export async function patchRecord(id: string, patch: Partial<RecordItem>): Promise<void> {
   await db.records.update(id, patch);
+}
+
+/** Sloučí hodnoty do slovníku uvnitř záznamu (extrakce, hodnocení kvality). */
+export async function mergeRecord(id: string, key: 'extraction' | 'quality', partial: Record<string, string>): Promise<void> {
+  await db.records
+    .where('id')
+    .equals(id)
+    .modify((r) => {
+      r[key] = { ...r[key], ...partial };
+    });
+}
+
+/** Uloží vstupní čísla jednoho výstupu pro metaanalýzu. */
+export async function mergeEffect(id: string, outcomeId: string, partial: Record<string, string>): Promise<void> {
+  await db.records
+    .where('id')
+    .equals(id)
+    .modify((r) => {
+      r.effects = { ...r.effects, [outcomeId]: { ...(r.effects[outcomeId] ?? {}), ...partial } };
+    });
 }
 
 // ---- Soubory plných textů ---------------------------------------------------

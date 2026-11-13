@@ -12,7 +12,7 @@ import { FRAMEWORKS, REVIEW_TYPES, hasStep } from '../reviewTypes';
 import { MEASURES, backTransform } from '../stats/effects';
 import { interpretI2 } from '../stats/meta';
 import type { Project, RecordItem, Template } from '../types';
-import { fmt, fmtP, formatDate, lines } from '../util';
+import { fmt, fmtP, formatDate, lines, plural } from '../util';
 
 export const APP_NAME = 'Průvodce přehledem';
 export const APP_VERSION = '0.1';
@@ -276,7 +276,11 @@ export function buildManuscript(project: Project, records: RecordItem[], mode: F
       kind: 'auto',
       guidance: 'Uveďte, kdo hodnotil a jak bylo hodnocení využito při interpretaci.',
       generated: tool.items.length
-        ? `Zařazené ${U.nom} byly hodnoceny nástrojem ${tool.name} (${tool.source.label}), který posuzuje tyto oblasti: ${joinCz(tool.items.map((i) => lower(i.label.replace(/^\d+\.\s*/, ''))))}. ${todo('kdo hodnotil a zda nezávisle')}`
+        ? `${
+            tool.id === 'custom'
+              ? `Zařazené ${U.nom} byly hodnoceny podle kontrolního seznamu s těmito položkami: ${tool.items.map((i) => `„${i.label}“`).join('; ')}.`
+              : `Zařazené ${U.nom} byly hodnoceny nástrojem ${tool.name} (${tool.source.label}), který posuzuje tyto oblasti: ${joinCz(tool.items.map((i) => lower(i.label.replace(/^\d+\.\s*/, ''))))}.`
+          } ${todo('kdo hodnotil a zda nezávisle')}`
         : todo('nástroj hodnocení kvality – zvolte v kroku Hodnocení kvality'),
     });
   }
@@ -324,15 +328,18 @@ export function buildManuscript(project: Project, records: RecordItem[], mode: F
 
   const flowFig = figure(`Vývojový diagram výběru ${U.gen} (podle PRISMA 2020)`, prismaSvg(counts, { mode, unit }));
   const bySource = counts.bySource.map((s) => `${s.source} (${n(s.n)})`).join(', ');
-  const selection = [`Vyhledávání přineslo celkem ${counts.identified} záznamů${counts.bySource.length > 1 ? `: ${bySource}` : ''}.`, `Po odstranění duplicit (${n(counts.duplicates)}) bylo podle názvu a abstraktu tříděno ${counts.screened} záznamů, z nichž byly vyřazeny nevyhovující (${n(counts.excluded1)}).`];
+  const selection = [
+    `Vyhledávání přineslo celkem ${plural(counts.identified, 'záznam', 'záznamy', 'záznamů')}${counts.bySource.length > 1 ? `: ${bySource}` : ''}.`,
+    `Po odstranění duplicit (${n(counts.duplicates)}) následovalo třídění podle názvu a abstraktu (${n(counts.screened)}), při kterém byly vyřazeny nevyhovující záznamy (${n(counts.excluded1)}).`,
+  ];
   if (twoStage) {
     selection.push(
-      `K posouzení plného textu postoupily záznamy v počtu ${n(counts.sought)}${counts.notRetrieved ? `, z toho se plný text nepodařilo získat u ${counts.notRetrieved}` : ''}. Posouzeny byly plné texty (${n(counts.assessed)}) a vyřazeny byly ty, které nesplnily kritéria (${n(counts.excluded2Total)})${
+      `Plné texty byly vyhledávány pro záznamy, které třídění prošly (${n(counts.sought)})${counts.notRetrieved ? `; nepodařilo se je získat u části z nich (${n(counts.notRetrieved)})` : ''}. Způsobilost byla posouzena u získaných plných textů (${n(counts.assessed)}) a vyřazeny byly ty, které kritéria nesplnily (${n(counts.excluded2Total)})${
         counts.excluded2.length ? `: ${counts.excluded2.map((e) => `${lower(e.reason)} (${n(e.n)})`).join(', ')}` : ''
       }. Seznam vyřazených plných textů s důvody uvádí příloha B.`,
     );
   }
-  selection.push(`Do přehledu byly zařazeny ${U.nom} v počtu ${n(counts.included)} (${flowFig.ref}).`);
+  selection.push(`Do přehledu byly zařazeny ${U.nom} (${n(counts.included)}; ${flowFig.ref}).`);
   if (counts.pending1 || counts.pending2) selection.push(todo(`třídění není dokončeno – neposouzeno zůstává ${counts.pending1 + counts.pending2} záznamů`));
   add({ id: 'r-selection', title: `Výběr ${U.gen}`, level: 2, kind: 'auto', guidance: 'Počty vycházejí z vašich rozhodnutí při třídění.', generated: selection.join(' '), extras: [flowFig.block] });
 
