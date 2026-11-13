@@ -1,0 +1,139 @@
+{
+ "hitCount": 983,
+ "nextCursorMark": "AoIIQHkfZCg1NjU1NTU4NA==",
+ "resultList": {
+  "result": [
+   {
+    "id": "42945193",
+    "source": "MED",
+    "pmid": "42945193",
+    "pmcid": "PMC13712597",
+    "doi": "10.1371/journal.pone.0360292",
+    "title": "Bridging the gap: Implementing BRIDGES (Brussels Resilience and Inclusion for Depression - Guidance, Exercise and Support) to shape adolescent outpatient mental health care. A pilot randomized controlled study protocol.",
+    "authorString": "Philippot A, Ibanez I, Coppens M, Eeckhout C, Cescutti C, Beine A, Meers E, Van Damme T, Francaux M, Dubois V, Vancampfort D.",
+    "authorList": {
+     "author": [
+      {
+       "fullName": "Philippot A",
+       "lastName": "Philippot",
+       "firstName": "Arnaud",
+       "initials": "A"
+      },
+      {
+       "fullName": "Ibanez I",
+       "lastName": "Ibanez",
+       "firstName": "Irène",
+       "initials": "I"
+      },
+      {
+       "fullName": "Coppens M",
+       "lastName": "Coppens",
+       "firstName": "Marine",
+       "initials": "M"
+      },
+      {
+       "fullName": "Eeckhout C",
+       "lastName": "Eeckhout",
+       "firstName": "Coralie",
+       "initials": "C"
+      },
+      {
+       "fullName": "Cescutti C",
+       "lastName": "Cescutti",
+       "firstName": "Catherine",
+       "initials": "C"
+      },
+      {
+       "fullName": "Beine A",
+       "lastName": "Beine",
+       "firstName": "Alexandre",
+       "initials": "A"
+      },
+      {
+       "fullName": "Meers E",
+       "lastName": "Meers",
+       "firstName": "Esther",
+       "initials": "E"
+      },
+      {
+       "fullName": "Van Damme T",
+       "lastName": "Van Damme",
+       "firstName": "Tine",
+       "initials": "T"
+      },
+      {
+       "fullName": "Francaux M",
+       "lastName": "Francaux",
+       "firstName": "Marc",
+       "initials": "M"
+      },
+      {
+       "fullName": "Dubois V",
+       "lastName": "Dubois",
+       "firstName": "Vincent",
+       "initials": "V"
+      },
+      {
+       "fullName": "Vancampfort D",
+       "lastName": "Vancampfort",
+       "firstName": "Davy",
+       "initials": "D"
+      }
+     ]
+    },
+    "journalInfo": {
+     "issue": "10",
+     "volume": "21",
+     "journalIssueId": 4275831,
+     "dateOfPublication": "2026 ",
+     "monthOfPublication": 0,
+     "yearOfPublication": 2026,
+     "journal": {
+      "medlineAbbreviation": "PLoS One",
+      "title": "PloS one",
+      "essn": "1932-6203",
+      "issn": "1932-6203",
+      "nlmid": "101285081",
+      "isoabbreviation": "PLoS One"
+     },
+     "printPublicationDate": "2026-01-01"
+    },
+    "pubYear": "2026",
+    "pageInfo": "e0360292",
+    "abstractText": "<h4>Introduction</h4>Physical activity interventions for adolescents with depression often show limited effectiveness due to insufficient developmental tailoring, limited autonomy support, and poor contextual feasibility…",
+    "language": "eng",
+    "pubTypeList": {
+     "pubType": [
+      "research-article",
+      "Randomized Controlled Trial",
+      "Journal Article"
+     ]
+    }
+   },
+   {
+    "id": "PPR1333645",
+    "source": "PPR",
+    "doi": "10.21203/rs.3.rs-10670159/v1",
+    "title": "The Screen Era: Visualizing the Impact of Digital Transformation on Physical Activity and Mental Well-Being among University Students",
+    "authorString": "KHALIFA A.",
+    "authorList": {
+     "author": [
+      {
+       "fullName": "KHALIFA A",
+       "lastName": "KHALIFA",
+       "firstName": "AHMED",
+       "initials": "A"
+      }
+     ]
+    },
+    "pubYear": "2026",
+    "abstractText": "<title>Abstract</title>  <p>  <bold>Introduction</bold>  The Screen Era has completely reshaped the daily lives of college and university students, making screen time, physical activity, and mental health a complex inter…",
+    "pubTypeList": {
+     "pubType": [
+      "Preprint"
+     ]
+    }
+   }
+  ]
+ }
+}

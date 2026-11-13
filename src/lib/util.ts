@@ -83,11 +83,12 @@ export function parseAuthor(raw: string): Author {
   }
   const parts = s.split(' ');
   if (parts.length === 1) return { family: s, given: '' };
+  // "Novák JK" nebo "Novák J. K." – příjmení následované iniciálami (styl PubMed a Scopus).
+  const isInitials = (t: string) => /^(?:[A-ZÁ-Ž]\.?-?){1,4}$/.test(t);
+  let cut = parts.length;
+  while (cut > 1 && isInitials(parts[cut - 1])) cut--;
+  if (cut < parts.length) return { family: parts.slice(0, cut).join(' '), given: parts.slice(cut).join(' ') };
   const last = parts[parts.length - 1];
-  // "Novák JK" – příjmení a iniciály bez čárky (styl PubMed).
-  if (/^[A-ZÁ-Ž]{1,3}$/.test(last) && parts.length >= 2) {
-    return { family: parts.slice(0, -1).join(' '), given: last };
-  }
   return { family: last, given: parts.slice(0, -1).join(' ') };
 }
 

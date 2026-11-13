@@ -162,7 +162,7 @@ export interface FieldDef {
   hint: string;
 }
 
-export type Measure = 'SMD' | 'MD' | 'OR' | 'RR' | 'RD' | 'COR' | 'GEN';
+export type Measure = 'SMD' | 'MD' | 'OR' | 'RR' | 'RD' | 'COR' | 'GEN' | 'RATIO';
 
 export interface OutcomeDef {
   id: string;
