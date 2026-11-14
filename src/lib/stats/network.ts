@@ -381,7 +381,9 @@ export function networkMeta(input: NetStudyInput[], opts: NetOptions): NetOutcom
   }
 
   // ---- 9. Přímé a nepřímé důkazy (zpětný výpočet) --------------------------------
-  const split: NetSplit[] = edges.map((e) => {
+  const split: NetSplit[] = edges.map((edge) => {
+    // Srovnání s referenční léčbou uvádíme jako „léčba oproti referenční“.
+    const e = edge.a === ref ? { a: edge.b, b: edge.a, studies: edge.studies } : edge;
     let sw = 0;
     let swy = 0;
     for (const s of prepared) {

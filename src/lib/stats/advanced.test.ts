@@ -301,9 +301,9 @@ describe('síťová metaanalýza (metafor::rma.mv, kontrastní model)', () => {
     const ba = res.league[res.treatments.indexOf('B')][res.treatments.indexOf('A')];
     expect(ba.est).toBeCloseTo(expected, 10);
     expect(ba.se).toBeCloseTo(Math.sqrt(1 / (1 / 0.04 + 1 / 0.07)), 10);
-    const sp = res.split.find((x) => x.a === 'A' && x.b === 'B')!;
-    expect(sp.direct.est).toBeCloseTo(-0.5, 10); // A oproti B
-    expect(sp.indirect!.est).toBeCloseTo(-0.8, 8);
+    const sp = res.split.find((x) => x.a === 'B' && x.b === 'A')!; // léčba oproti referenční
+    expect(sp.direct.est).toBeCloseTo(0.5, 10);
+    expect(sp.indirect!.est).toBeCloseTo(0.8, 8);
     expect(sp.indirect!.se).toBeCloseTo(Math.sqrt(0.07), 8);
     // Nekonzistence smyčky: (0,5 − 0,8)² / (0,04 + 0,07) = Q s jedním stupněm volnosti.
     expect(res.Q).toBeCloseTo(0.09 / 0.11, 10);

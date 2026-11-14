@@ -9,27 +9,65 @@ a rozliší, co udělá aplikace a co musí udělat člověk. Z rozhodnutí a da
 sestaví podklad pro text – odborný článek, bakalářskou nebo diplomovou práci.
 
 Aplikace běží celá v prohlížeči. Nemá server ani uživatelské účty; data zůstávají
-v počítači uživatele.
+v počítači uživatele a ukládají se sama (viz [Kde jsou data](#kde-jsou-data)).
 
 ## Co aplikace umí
 
 | Krok | Co udělá aplikace | Co dělá člověk |
 |---|---|---|
 | Výzkumná otázka | nabídne rámec PICO / PCC, navrhne znění | formuluje otázku a cíl |
-| Protokol a kritéria | uloží kritéria, vyexportuje protokol | stanoví kritéria, registruje protokol |
+| Protokol a kritéria | uloží kritéria, nastaví jednoho nebo dva hodnotitele, vyexportuje protokol | stanoví kritéria, registruje protokol |
 | Vyhledávání | sestaví dotaz pro 7 databází, prohledá PubMed, Europe PMC a ERIC, načte RIS / NBIB / BibTeX / CSV, vede deník hledání | volí termíny, prohledá Scopus, WoS, EBSCO a nahraje výsledky |
 | Duplicity | najde jisté a pravděpodobné duplicity, sloučí je | rozhodne sporné dvojice |
-| Třídění podle abstraktu | zobrazuje záznamy, zvýrazňuje slova, počítá postup | rozhoduje o každém záznamu |
-| Posouzení plných textů | eviduje stav, PDF a důvody vyřazení | shání a čte plné texty |
-| Extrakce dat | nabídne upravitelný formulář, počítá velikosti účinku | vypisuje údaje ze studií |
+| Třídění podle abstraktu | zobrazuje záznamy, zvýrazňuje slova, počítá postup; při dvou hodnotitelích vede hlasy zvlášť, počítá Cohenovo κ a ukáže neshody | rozhoduje o každém záznamu, řeší neshody |
+| Posouzení plných textů | eviduje stav, PDF a důvody vyřazení; neshody v rozhodnutí i v důvodu | shání a čte plné texty |
+| Extrakce dat | nabídne upravitelný formulář, počítá velikosti účinku, i více efektů z jedné studie a srovnání léčeb pro síť | vypisuje údaje ze studií |
 | Hodnocení kvality | RoB 2, ROBINS-I, AMSTAR 2, ROBIS, vlastní seznam; navrhne celkové hodnocení | hodnotí jednotlivé oblasti |
-| Syntéza | metaanalýza, lesní a trychtýřový graf, podskupiny, citlivostní analýza, GRADE; četnosti; překryv přehledů (CCA) | rozhoduje, co slučovat, a interpretuje |
+| Syntéza | metaanalýza, lesní a trychtýřový graf, podskupiny, citlivostní analýza, GRADE; závislé efekty (sloučení nebo tříúrovňový model); metaregrese; síťová metaanalýza; četnosti; překryv přehledů (CCA) | rozhoduje, co slučovat, a interpretuje |
 | Vývojový diagram | nakreslí diagram PRISMA 2020 z počtů | zkontroluje |
 | Text práce | vygeneruje metodiku, výsledky, tabulky, obrázky, literaturu a přílohy; export do Wordu | píše úvod, diskusi a závěr |
 | Kontrolní seznam | PRISMA 2020, PRISMA-ScR, PRIOR nebo SANRA | ověří úplnost textu |
 
 Typy přehledů sdílejí stejné jádro a liší se nastavením v `src/lib/reviewTypes.ts`:
 které kroky jsou povinné, jaký rámec otázky a jaký standard platí.
+
+### Pokročilé analýzy
+
+- **Více efektů z jedné studie.** Studie může k výstupu přispět více efekty (časové body,
+  podskupiny, ramena). Analýza je buď sloučí do jednoho efektu studie s předpokládanou
+  korelací (Borenstein et al., 2009), nebo použije tříúrovňový model se dvěma složkami
+  rozptylu (Cheung, 2014).
+- **Metaregrese.** Číselné i kategoriální moderátory z extrakce, test moderátorů, podíl
+  vysvětlené heterogenity (R²), bublinový graf, volitelně Knappova–Hartungova úprava.
+- **Síťová metaanalýza.** Frekventistický kontrastní model s korektním zacházením se
+  studiemi o třech a více ramenech; graf sítě, odhady oproti referenční léčbě, tabulka
+  všech srovnání, pořadí podle P-skóre, rozklad Q na heterogenitu a nekonzistenci,
+  srovnání přímých a nepřímých důkazů.
+
+Aplikace obsahuje dva ukázkové projekty: metaanalýzu s metaregresí (vakcína BCG)
+a síťovou metaanalýzu (intervence pro odvykání kouření).
+
+### Dva hodnotitelé
+
+Třídění dvěma nezávislými hodnotiteli se zapíná v kroku Protokol. Hodnotitelé mohou
+pracovat střídavě na jednom počítači, nebo každý na svém: hlavní hodnotitel pošle druhému
+„balíček“ (kopii projektu bez svých rozhodnutí), ten ho načte, roztřídí a vrátí soubor se
+svými rozhodnutími. Aplikace spočítá shodu a Cohenovo κ, ukáže neshody k vyřešení a vše
+popíše v metodice a výsledcích.
+
+## Kde jsou data
+
+Vše, co uživatel udělá, se **ukládá samo** do úložiště prohlížeče (IndexedDB). Data tam
+zůstávají po zavření karty, vypnutí počítače i po aktualizaci aplikace; při přechodu na
+novou verzi se starší data automaticky převedou.
+
+Data nejsou vidět v jiném prohlížeči ani na jiném počítači a zmizí, pokud uživatel
+v prohlížeči smaže data stránek nebo pracuje v anonymním okně. Proti tomu slouží:
+
+- **záloha projektu** – soubor JSON ke stažení, který jde načíst kdekoli;
+- **průběžné ukládání do souboru** (Chrome, Edge, Opera) – projekt se po každé změně
+  zapíše do zvoleného souboru, například ve složce synchronizované s cloudem;
+- žádost o **trvalé úložiště**, aby prohlížeč data nemazal při nedostatku místa.
 
 ## Spuštění
 
@@ -72,27 +110,30 @@ src/
   lib/                 jádro bez závislosti na uživatelském rozhraní
     types.ts             datový model (projekt, záznam, hledání…)
     reviewTypes.ts       nastavení pěti typů přehledů
-    db.ts                úložiště v prohlížeči (IndexedDB), záloha a obnova
+    db.ts                úložiště v prohlížeči (IndexedDB), záloha a obnova, převod starších dat
+    storage.ts           trvalé úložiště, evidence záloh, průběžné ukládání do souboru
+    reviewers.ts         dva hodnotitelé: shoda hlasů, neshody, Cohenovo kappa
     importers/           čtení souborů RIS, NBIB, BibTeX a CSV
     search/              sestavení dotazů a klienti PubMed, Europe PMC, ERIC
     dedup.ts             hledání duplicit
     flow.ts              počty pro vývojový diagram
-    stats/               rozdělení pravděpodobnosti, velikosti účinku,
-                         metaanalýza, překryv přehledů (CCA)
+    stats/               rozdělení pravděpodobnosti, velikosti účinku, metaanalýza,
+                         metaregrese, tříúrovňový model, síťová metaanalýza,
+                         překryv přehledů (CCA)
     analysis.ts          propojení dat projektu se statistikou
-    figures.ts           obrázky jako SVG (diagram PRISMA, lesní graf…)
+    figures.ts           obrázky jako SVG (diagram PRISMA, lesní graf, síť léčeb…)
     quality.ts           nástroje hodnocení kvality
     checklists.ts        kontrolní seznamy pro psaní zprávy
     citations.ts         citace APA 7 a ČSN ISO 690
     manuscript/          sestavení textu práce a export do Wordu a Markdownu
     content/             výukové texty ke krokům a slovníček
-    demo.ts              ukázkový projekt
+    demo.ts              ukázkové projekty
   steps/               obrazovky jednotlivých kroků
   pages/               úvodní stránka, stránka projektu, nápověda
   ui.tsx               sdílené prvky rozhraní
 tests/
   fixtures/            ukázky skutečných odpovědí databází pro testy
-  reference/           nezávislý výpočet referenčních hodnot (Python, SciPy)
+  reference/           výpočet referenčních hodnot (Python a SciPy; R a metafor)
 ```
 
 Použité technologie: TypeScript, React, Vite, Dexie (IndexedDB), docx, Vitest.
@@ -100,18 +141,27 @@ Použité technologie: TypeScript, React, Vite, Dexie (IndexedDB), docx, Vitest.
 ## Ověření správnosti
 
 Automatické testy (`npm test`) pokrývají čtení souborů, sestavení dotazů, hledání
-duplicit, počty vývojového diagramu, citace, statistiku i sestavení textu.
+duplicit, počty vývojového diagramu, citace, statistiku, třídění dvěma hodnotiteli,
+převod starších dat i sestavení textu.
 
-Statistické funkce se ověřují dvojím způsobem:
+Statistické funkce se ověřují proti nezávislým výpočtům:
 
-1. proti nezávislému výpočtu v Pythonu (`tests/reference/make_reference.py`, knihovny
-   NumPy a SciPy), který pro odhad REML používá jiný postup než aplikace;
-2. proti publikovanému výstupu balíku metafor pro datovou sadu 13 studií vakcíny BCG
-   (Colditz et al., 1994): odhad −0,7145, směrodatná chyba 0,1798, τ² = 0,3132,
-   I² = 92,22 %, Q(12) = 152,23.
+| Analýza | Referenční výpočet | Data |
+|---|---|---|
+| metaanalýza (pevný a náhodné efekty, REML, DL, Knapp–Hartung, predikční interval, Egger) | SciPy (`tests/reference/make_reference.py`) a publikovaný výstup metafor | 13 studií vakcíny BCG (Colditz et al., 1994) |
+| metaregrese | `metafor::rma` | vakcína BCG, moderátor zeměpisná šířka |
+| tříúrovňový model | `metafor::rma.mv` | Konstantopoulos (2011); Assink a Wibbelink (2016) |
+| sloučení efektů uvnitř studie | `metafor::aggregate` | Assink a Wibbelink (2016) |
+| síťová metaanalýza | `metafor::rma.mv` (kontrastní model) | Hasselblad (1998); Senn et al. (2013) |
 
-Stejná data obsahuje ukázkový projekt v aplikaci, takže si výsledek může každý
-porovnat s dokumentací metafor.
+Referenční hodnoty pro metafor vytváří skript `tests/reference/make_reference.R`
+(R s balíky metafor a metadat); výsledek je uložen v `reference-metafor.json`, takže
+testy běží i bez R. Shoda je na čtyři až šest platných míst. Například pro síť léčeb
+diabetu vychází rozklad Q = 96,98 (df 18) na 74,45 uvnitř designů a 22,53 mezi designy,
+stejně jako v dokumentaci balíku netmeta.
+
+Oba ukázkové projekty používají referenční data, takže si výsledek může každý porovnat
+s dokumentací metafor.
 
 Čtení odpovědí databází se testuje na uložených ukázkách skutečných odpovědí
 PubMed, Europe PMC a ERIC (`tests/fixtures`).
@@ -120,13 +170,19 @@ PubMed, Europe PMC a ERIC (`tests/fixtures`).
 
 - Scopus, Web of Science, SPORTDiscus a další placené databáze nelze prohledat přímo;
   jejich výsledky se nahrávají jako soubor.
-- Aplikace je pro jednoho uživatele; nezávislé třídění dvěma hodnotiteli nepodporuje.
-- Metaanalýza pracuje s jedním efektem na studii a výstup. Neřeší síťovou metaanalýzu,
-  metaregresi ani závislé efekty.
+- Spolupráce dvou hodnotitelů probíhá výměnou souborů. Aplikace nemá server, takže
+  více lidí nemůže pracovat v jednom projektu současně. Extrakce dat a hodnocení kvality
+  se vedou jako jeden společný záznam.
+- Síťová metaanalýza používá frekventistický model se společnou heterogenitou; neumí
+  bayesovský odhad ani metaregresi v síti a nenabízí kontrolní seznam PRISMA-NMA.
+  Srovnání přímých a nepřímých důkazů je u studií se třemi a více rameny přibližné.
+- Tříúrovňový model nepočítá s korelací výběrových chyb (sdílení účastníků nebo kontrolní
+  skupiny); pro takové případy je určeno sloučení efektů se zadanou korelací.
 - Znění kontrolních seznamů a nástrojů hodnocení kvality je zkrácené a převyprávěné;
   závazné jsou původní dokumenty, na které aplikace odkazuje.
-- Data jsou uložena jen v prohlížeči. Bez stažené zálohy je nelze obnovit po vymazání
-  dat prohlížeče; přiložené soubory PDF záloha neobsahuje.
+- Data leží v prohlížeči uživatele a ukládají se sama, nejsou ale sdílená mezi
+  zařízeními. Záloha a průběžné ukládání do souboru neobsahují přiložené soubory PDF;
+  průběžné ukládání do souboru funguje jen v prohlížečích Chrome, Edge a Opera.
 - Vygenerovaný text je podklad. Autor ho musí zkontrolovat, doplnit a umět obhájit.
 
 ## Metodické zdroje
@@ -144,3 +200,17 @@ PubMed, Europe PMC a ERIC (`tests/fixtures`).
 - Pieper, D., et al. (2014). Systematic review finds overlapping reviews were not mentioned in every other overview. *Journal of Clinical Epidemiology, 67*(4), 368–375. https://doi.org/10.1016/j.jclinepi.2013.11.007
 - Viechtbauer, W. (2010). Conducting meta-analyses in R with the metafor package. *Journal of Statistical Software, 36*(3), 1–48. https://doi.org/10.18637/jss.v036.i03
 - Colditz, G. A., et al. (1994). Efficacy of BCG vaccine in the prevention of tuberculosis. *JAMA, 271*(9), 698–702.
+- Borenstein, M., Hedges, L. V., Higgins, J. P. T., & Rothstein, H. R. (2009). *Introduction to meta-analysis*. Wiley.
+- Cheung, M. W.-L. (2014). Modeling dependent effect sizes with three-level meta-analyses. *Psychological Methods, 19*(2), 211–229. https://doi.org/10.1037/a0032968
+- Van den Noortgate, W., et al. (2013). Three-level meta-analysis of dependent effect sizes. *Behavior Research Methods, 45*, 576–594. https://doi.org/10.3758/s13428-012-0261-6
+- Konstantopoulos, S. (2011). Fixed effects and variance components estimation in three-level meta-analysis. *Research Synthesis Methods, 2*(1), 61–76. https://doi.org/10.1002/jrsm.35
+- Assink, M., & Wibbelink, C. J. M. (2016). Fitting three-level meta-analytic models in R: A step-by-step tutorial. *The Quantitative Methods for Psychology, 12*(3), 154–174.
+- Salanti, G. (2012). Indirect and mixed-treatment comparison, network, or multiple-treatments meta-analysis. *Research Synthesis Methods, 3*(2), 80–97. https://doi.org/10.1002/jrsm.1037
+- Higgins, J. P. T., et al. (2012). Consistency and inconsistency in network meta-analysis: concepts and models for multi-arm studies. *Research Synthesis Methods, 3*(2), 98–110. https://doi.org/10.1002/jrsm.1044
+- Dias, S., et al. (2010). Checking consistency in mixed treatment comparison meta-analysis. *Statistics in Medicine, 29*(7–8), 932–944. https://doi.org/10.1002/sim.3767
+- Rücker, G., & Schwarzer, G. (2015). Ranking treatments in frequentist network meta-analysis works without resampling methods. *BMC Medical Research Methodology, 15*, 58. https://doi.org/10.1186/s12874-015-0060-8
+- Hutton, B., et al. (2015). The PRISMA extension statement for reporting of systematic reviews incorporating network meta-analyses. *Annals of Internal Medicine, 162*(11), 777–784. https://doi.org/10.7326/M14-2385
+- Hasselblad, V. (1998). Meta-analysis of multitreatment studies. *Medical Decision Making, 18*(1), 37–43. https://doi.org/10.1177/0272989X9801800110
+- Senn, S., et al. (2013). Issues in performing a network meta-analysis. *Statistical Methods in Medical Research, 22*(2), 169–189. https://doi.org/10.1177/0962280211432220
+- Cohen, J. (1960). A coefficient of agreement for nominal scales. *Educational and Psychological Measurement, 20*(1), 37–46.
+- Landis, J. R., & Koch, G. G. (1977). The measurement of observer agreement for categorical data. *Biometrics, 33*(1), 159–174. https://doi.org/10.2307/2529310

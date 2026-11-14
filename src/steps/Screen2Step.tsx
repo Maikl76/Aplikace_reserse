@@ -27,6 +27,8 @@ export default function Screen2Step({ project, records }: StepProps) {
   const mine = (r: RecordItem): { decision: Screen2; reason: string } => (double ? vote2Of(r, me) : { decision: r.screen2, reason: r.excludeReason });
   const stateOf = (r: RecordItem): Exclude<Filter, 'all'> => (r.fulltext === 'notRetrieved' ? 'notRetrieved' : mine(r).decision);
   const setDecision = (r: RecordItem, decision: Screen2) => {
+    // Záznam zůstává vybraný i poté, co rozhodnutím vypadne z aktuálního filtru – aby šel doplnit důvod.
+    setSelected(r.id);
     const next = mine(r).decision === decision ? 'pending' : decision;
     if (double) return castVote2(project, r.id, me, { decision: next, reason: next === 'exclude' ? mine(r).reason : '' });
     return patchRecord(r.id, { screen2: next, fulltext: 'retrieved', ...(decision === 'include' ? { excludeReason: '' } : {}) });
@@ -34,7 +36,7 @@ export default function Screen2Step({ project, records }: StepProps) {
   const setReason = (r: RecordItem, reason: string) => (double ? castVote2(project, r.id, me, { decision: 'exclude', reason }) : patchRecord(r.id, { excludeReason: reason }));
   const conflictView = double && !fixed && view === 'conflicts';
 
-  const list = queue.filter((r) => filter === 'all' || stateOf(r) === filter);
+  const list = queue.filter((r) => filter === 'all' || stateOf(r) === filter || r.id === selected);
   const current = list.find((r) => r.id === selected) ?? list[0] ?? null;
   const count = (f: Exclude<Filter, 'all'>) => queue.filter((r) => stateOf(r) === f).length;
   const reasons = lines(project.protocol.excludeReasons);
@@ -140,7 +142,10 @@ export default function Screen2Step({ project, records }: StepProps) {
                         { id: 'retrieved', label: 'Získán' },
                         { id: 'notRetrieved', label: 'Nezískán' },
                       ]}
-                      onChange={(fulltext) => patchRecord(current.id, { fulltext })}
+                      onChange={(fulltext) => {
+                        setSelected(current.id);
+                        void patchRecord(current.id, { fulltext });
+                      }}
                     />
                     {file ? (
                       <>

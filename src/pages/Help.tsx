@@ -177,24 +177,49 @@ function About() {
       <section className="card">
         <h2>Kde jsou vaše data</h2>
         <p>
-          Aplikace nemá server. Projekty, záznamy i přiložené plné texty se ukládají jen do úložiště vašeho prohlížeče na tomto počítači. Při přímém vyhledávání odesílá prohlížeč dotaz přímo do zvolené databáze
-          (PubMed, Europe PMC, ERIC).
+          Aplikace nemá server. Projekty, záznamy i přiložené plné texty se <strong>ukládají samy do úložiště vašeho prohlížeče</strong> na tomto počítači. Zůstávají tam i po zavření karty, vypnutí počítače nebo
+          aktualizaci aplikace – při dalším otevření pokračujete tam, kde jste skončili. Při přímém vyhledávání odesílá prohlížeč dotaz přímo do zvolené databáze (PubMed, Europe PMC, ERIC); jinam se nic neposílá.
         </p>
-        <p>Vymazáním dat prohlížeče o projekty přijdete. Zálohu projektu (soubor JSON) proto stahujte pravidelně; přiložené soubory PDF záloha neobsahuje.</p>
+        <p>O data můžete přijít jen tak, že v prohlížeči smažete data stránek, pracujete v anonymním okně nebo otevřete aplikaci v jiném prohlížeči či na jiném počítači (tam je úložiště prázdné). Proti tomu slouží:</p>
+        <ul>
+          <li>
+            <strong>Záloha projektu</strong> – soubor JSON stažený tlačítkem v levém panelu. Načtete ho na úvodní stránce; slouží i k přenosu na jiný počítač. Přiložené soubory PDF záloha neobsahuje.
+          </li>
+          <li>
+            <strong>Průběžné ukládání do souboru</strong> (Chrome, Edge, Opera) – projekt se po každé změně sám zapíše do souboru, který zvolíte. Když soubor leží ve složce synchronizované s cloudem (OneDrive, Disk
+            Google), máte zálohu mimo počítač bez další práce. Po novém spuštění prohlížeče může být potřeba zápis jedním kliknutím znovu povolit.
+          </li>
+        </ul>
+      </section>
+      <section className="card">
+        <h2>Dva hodnotitelé</h2>
+        <p>
+          Třídění dvěma nezávislými hodnotiteli se zapíná v kroku Protokol. Každý hodnotitel rozhoduje sám a rozhodnutí druhého nevidí; aplikace pak spočítá míru shody (Cohenovo κ) a ukáže neshody k vyřešení. Lze
+          pracovat střídavě na jednom počítači, nebo každý na svém: hlavní hodnotitel pošle druhému „balíček“ (kopii projektu bez svých rozhodnutí) a ten mu vrátí soubor se svými rozhodnutími.
+        </p>
+        <p className="muted">Extrakci dat a hodnocení kvality aplikace vede jako jeden společný záznam; pokud je děláte ve dvou, shodněte se před zápisem.</p>
       </section>
       <section className="card">
         <h2>Jak jsou ověřené výpočty</h2>
         <p>
-          Statistické funkce (velikosti účinku, model s pevným a náhodnými efekty, odhad τ² metodou REML a DerSimoniana–Lairda, Knappova–Hartungova úprava, predikční interval, Eggerův test) jsou pokryty
-          automatickými testy. Výsledky se porovnávají s nezávislým výpočtem v knihovně SciPy a s publikovaným výstupem balíku metafor pro datovou sadu studií vakcíny BCG. Stejná data obsahuje ukázkový projekt.
+          Statistické funkce jsou pokryty automatickými testy a porovnávají se s výsledky balíku metafor pro R a s nezávislým výpočtem v knihovně SciPy:
         </p>
+        <ul>
+          <li>běžná metaanalýza a metaregrese – 13 studií vakcíny BCG (Colditz et al., 1994); stejná data obsahuje první ukázkový projekt;</li>
+          <li>tříúrovňový model a sloučení efektů – data Konstantopoulos (2011) a Assink a Wibbelink (2016);</li>
+          <li>síťová metaanalýza – odvykání kouření (Hasselblad, 1998; druhý ukázkový projekt) a léky na diabetes (Senn et al., 2013).</li>
+        </ul>
+        <p className="muted">Skript, který referenční hodnoty počítá, je součástí zdrojového kódu (tests/reference).</p>
       </section>
       <section className="card">
         <h2>Omezení</h2>
         <ul>
           <li>Scopus, Web of Science, SPORTDiscus a další placené databáze nelze prohledat přímo; výsledky z nich se nahrávají jako soubor.</li>
-          <li>Aplikace je určena pro jednoho uživatele. Nezávislé třídění dvěma hodnotiteli nepodporuje – uveďte to mezi omezeními své práce.</li>
-          <li>Metaanalýza pracuje s jedním efektem na studii a výstup; síťovou metaanalýzu, metaregresi ani vícenásobné efekty z jedné studie neřeší.</li>
+          <li>Spolupráce dvou hodnotitelů probíhá výměnou souborů, ne přes společný server; současná práce více lidí v jednom projektu možná není.</li>
+          <li>
+            Síťová metaanalýza používá frekventistický model se společnou heterogenitou. Neumí bayesovský odhad, metaregresi v síti ani kontrolní seznam PRISMA-NMA; tříúrovňový model nepočítá s korelací výběrových chyb
+            (ta se řeší sloučením efektů).
+          </li>
           <li>Znění kontrolních seznamů a nástrojů je zkrácené. Při práci používejte původní dokumenty, na které aplikace odkazuje.</li>
           <li>Citační styl vygenerovaného seznamu literatury vždy zkontrolujte podle požadavků své školy.</li>
         </ul>

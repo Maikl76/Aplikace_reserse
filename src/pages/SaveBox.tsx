@@ -62,8 +62,9 @@ export default function SaveBox({ project, records }: { project: Project; record
           {link.permission !== 'granted' ? 'čeká na povolení zápisu' : state === 'saving' ? 'ukládám…' : state === 'error' ? 'zápis se nezdařil' : `uloženo ${backupAt ? ago(backupAt) : ''}`}
         </div>
       ) : (
-        <div className="small" style={{ marginTop: 6, color: stale ? 'var(--warn-text, inherit)' : undefined }}>
+        <div className="small" style={{ marginTop: 6 }}>
           Záloha v souboru: {backupAt ? ago(backupAt) : 'zatím žádná'}
+          {stale && backupAt ? <span className="muted"> – od té doby přibyly změny</span> : null}
         </div>
       )}
       <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
