@@ -161,3 +161,10 @@ export function tInv(p: number, df: number): number {
   }
   return (lo + hi) / 2;
 }
+
+/** Pravděpodobnost, že F rozdělení se stupni volnosti d1 a d2 překročí f (p-hodnota F testu). */
+export function fSf(f: number, d1: number, d2: number): number {
+  if (d1 <= 0 || d2 <= 0) return NaN;
+  if (f <= 0) return 1;
+  return betaI(d2 / (d2 + d1 * f), d2 / 2, d1 / 2);
+}
