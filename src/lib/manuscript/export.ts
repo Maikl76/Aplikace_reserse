@@ -64,7 +64,8 @@ async function blockToDocx(b: Block, thesis: boolean, rasterize: (svg: string) =
         new Paragraph({ keepNext: true, spacing: { before: 240, after: 80, line: 276, lineRule: LineRuleType.AUTO }, children: [new TextRun({ text: b.caption, bold: true, size: 20 })] }),
         new Table({
           width: { size: 100, type: WidthType.PERCENTAGE },
-          rows: [new TableRow({ tableHeader: true, children: b.head.map((h) => cell(h, true)) }), ...b.rows.map((row) => new TableRow({ children: row.map((c) => cell(c)) }))],
+          // Řádek tabulky se nedělí mezi dvě strany.
+          rows: [new TableRow({ tableHeader: true, cantSplit: true, children: b.head.map((h) => cell(h, true)) }), ...b.rows.map((row) => new TableRow({ cantSplit: true, children: row.map((c) => cell(c)) }))],
         }),
         new Paragraph({ spacing: { after: 120 }, children: [] }),
       ];

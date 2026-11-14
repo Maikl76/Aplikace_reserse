@@ -132,7 +132,7 @@ describe('sestavení textu', () => {
     expect(res).toContain('Eggerův test');
     // Lesní graf a bublinový graf metaregrese (moderátor: zeměpisná šířka).
     expect(get('r-synthesis').extras.filter((b) => b.t === 'figure')).toHaveLength(2);
-    expect(res).toContain('Metaregrese (studií k = 13; tabulka 3): test moderátorů Q(1) = 16,36, p < 0,001; moderátory vysvětlily 75,6 % rozptylu mezi studiemi');
+    expect(res).toContain('Metaregrese (studií k = 13; tabulka 2): test moderátorů Q(1) = 16,36, p < 0,001; moderátory vysvětlily 75,6 % rozptylu mezi studiemi');
     expect(get('m-synthesis').generated).toContain('metaregresí se smíšenými efekty; moderátory byly: zeměpisná šířka (°)');
     expect(get('r-selection').generated).toContain('Do přehledu byly zařazeny studie (n = 13; obrázek 1).');
     expect(get('references').extras).toHaveLength(13);

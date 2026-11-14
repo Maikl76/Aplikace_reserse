@@ -416,11 +416,14 @@ export function buildManuscript(project: Project, records: RecordItem[], mode: F
   if (tool && tool.items.length) {
     const rated = ordered.filter((r) => r.qualityOverall || Object.keys(r.quality).length);
     const short = (i: number) => (tool.id === 'amstar2' ? String(i + 1) : tool.id === 'custom' ? `P${i + 1}` : `D${i + 1}`);
-    const qTable = table(
-      `Hodnocení nástrojem ${tool.name}. ${tool.items.map((it, i) => `${short(i)} – ${lower(it.label.replace(/^\d+\.\s*/, ''))}`).join('; ')}`,
-      [U.one.charAt(0).toUpperCase() + U.one.slice(1), ...tool.items.map((_, i) => short(i)), 'Celkem'],
-      ordered.map((r) => [labels.get(r.id) ?? '', ...tool.items.map((it) => levelOf(tool.levels, r.quality[it.id])?.label ?? '–'), levelOf(tool.overallLevels, r.qualityOverall)?.label ?? '–']),
-    );
+    // Tabulka (a její číslo) vzniká jen tehdy, když už je co ukázat – jinak by v číslování zůstala mezera.
+    const qTable = rated.length
+      ? table(
+          `Hodnocení nástrojem ${tool.name}. ${tool.items.map((it, i) => `${short(i)} – ${lower(it.label.replace(/^\d+\.\s*/, ''))}`).join('; ')}`,
+          [U.one.charAt(0).toUpperCase() + U.one.slice(1), ...tool.items.map((_, i) => short(i)), 'Celkem'],
+          ordered.map((r) => [labels.get(r.id) ?? '', ...tool.items.map((it) => levelOf(tool.levels, r.quality[it.id])?.label ?? '–'), levelOf(tool.overallLevels, r.qualityOverall)?.label ?? '–']),
+        )
+      : null;
     const overall = tool.overallLevels.map((l) => ({ l, k: ordered.filter((r) => r.qualityOverall === l.id).length })).filter((x) => x.k > 0);
     add({
       id: 'r-quality',
@@ -428,10 +431,10 @@ export function buildManuscript(project: Project, records: RecordItem[], mode: F
       level: 2,
       kind: 'auto',
       guidance: 'Popište, ve kterých oblastech byly problémy nejčastější.',
-      generated: rated.length
+      generated: qTable
         ? `Hodnocení jednotlivých ${U.gen} uvádí ${qTable.ref}. ${tool.overallLabel}: ${overall.map((x) => `${lower(x.l.label)} (${n(x.k)})`).join(', ') || 'zatím neuvedeno'}. ${todo('nejčastější nedostatky')}`
         : todo('hodnocení kvality zatím nebylo provedeno'),
-      extras: rated.length ? [qTable.block] : [],
+      extras: qTable ? [qTable.block] : [],
     });
   }
 
@@ -514,6 +517,14 @@ export function buildManuscript(project: Project, records: RecordItem[], mode: F
         }),
       );
       const order = res.pscore.map((x) => x.treatment);
+      const rank = table(
+        `Pořadí léčeb podle P-skóre – ${outcome.name}`,
+        ['Pořadí', 'Léčba', 'P-skóre', `${m.short} oproti „${res.reference}“ (95% CI)`, 'Počet studií'],
+        res.pscore.map((x, i) => {
+          const e = res.vsReference[res.treatments.indexOf(x.treatment)];
+          return [`${i + 1}.`, x.treatment, fmt(x.value, 2), x.treatment === res.reference ? 'referenční' : `${sh(e.est)} (${sh(e.ciLow)} až ${sh(e.ciHigh)})`, String(res.nodes.find((nd) => nd.treatment === x.treatment)?.studies ?? '')];
+        }),
+      );
       const league = table(
         `Všechna vzájemná srovnání – ${outcome.name}. V buňce je ${m.short} léčby v řádku oproti léčbě ve sloupci (95% CI); léčby jsou seřazeny podle P-skóre`,
         ['', ...order],
@@ -526,17 +537,9 @@ export function buildManuscript(project: Project, records: RecordItem[], mode: F
           }),
         ]),
       );
-      const rank = table(
-        `Pořadí léčeb podle P-skóre – ${outcome.name}`,
-        ['Pořadí', 'Léčba', 'P-skóre', `${m.short} oproti „${res.reference}“ (95% CI)`, 'Počet studií'],
-        res.pscore.map((x, i) => {
-          const e = res.vsReference[res.treatments.indexOf(x.treatment)];
-          return [`${i + 1}.`, x.treatment, fmt(x.value, 2), x.treatment === res.reference ? 'referenční' : `${sh(e.est)} (${sh(e.ciLow)} až ${sh(e.ciHigh)})`, String(res.nodes.find((nd) => nd.treatment === x.treatment)?.studies ?? '')];
-        }),
-      );
       const parts = [
         `Výstup „${outcome.name}“ (${m.name.toLowerCase()}): síť tvořily studie (${n(res.studies)}${res.multiArm ? `, z toho se třemi a více rameny ${n(res.multiArm)}` : ''}), které srovnávaly ${plural(res.treatments.length, 'léčbu', 'léčby', 'léčeb')} v ${res.edges.length} přímých srovnáních (${gfig.ref}).`,
-        `Odhady účinku jednotlivých léčeb oproti referenční léčbě „${res.reference}“ v modelu ${res.model === 'random' ? 's náhodnými efekty' : 'se společným efektem'} ukazuje ${ffig.ref}, všechna vzájemná srovnání ${league.ref} a pořadí léčeb ${rank.ref}.`,
+        `Odhady účinku jednotlivých léčeb oproti referenční léčbě „${res.reference}“ v modelu ${res.model === 'random' ? 's náhodnými efekty' : 'se společným efektem'} ukazuje ${ffig.ref}, pořadí léčeb ${rank.ref} a všechna vzájemná srovnání ${league.ref}.`,
         `Nejvyšší P-skóre měla léčba „${res.pscore[0].treatment}“ (${fmt(res.pscore[0].value, 2)}), nejnižší „${res.pscore[res.pscore.length - 1].treatment}“ (${fmt(res.pscore[res.pscore.length - 1].value, 2)}).`,
       ];
       if (res.df > 0) parts.push(`Heterogenita a nekonzistence v celé síti: Q(${res.df}) = ${fmt(res.Q, 2)}, p ${fmtP(res.pQ)}; I² = ${fmt(res.I2, 1)} %${res.model === 'random' ? `; τ² = ${fmt(res.tau2, 4)}` : ''}.`);
