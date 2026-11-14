@@ -1,9 +1,9 @@
-import { mergeProject } from '../lib/db';
+import { mergeProject, patchProject, setDoubleMode } from '../lib/db';
 import { FRAMEWORKS, REVIEW_TYPES } from '../lib/reviewTypes';
 import type { Project, Protocol } from '../lib/types';
 import { download, formatDate, lines, nowIso, slug } from '../lib/util';
 import type { StepProps } from '../pages/ProjectPage';
-import { Field, TextArea, TextInput } from '../ui';
+import { Field, Notice, Seg, TextArea, TextInput } from '../ui';
 
 /** Protokol jako samostatný dokument (Markdown) – k registraci nebo ke schválení vedoucím. */
 export function protocolMarkdown(project: Project): string {
@@ -42,7 +42,10 @@ export function protocolMarkdown(project: Project): string {
     list(p.sources),
     '',
     '## Výběr studií',
-    `Hodnotitelé: ${p.reviewers.trim() || '(nevyplněno)'}`,
+    project.team.double
+      ? `Třídění provádějí nezávisle dva hodnotitelé (${project.team.reviewers.map((r) => r.name.trim()).filter(Boolean).join(', ') || 'jména nevyplněna'}); neshody řeší dohodou, případně s třetí osobou.`
+      : 'Třídění provádí jeden hodnotitel.',
+    `Upřesnění: ${p.reviewers.trim() || '(nevyplněno)'}`,
     '',
     'Důvody vyřazení plných textů (v tomto pořadí):',
     list(p.excludeReasons),
@@ -104,6 +107,46 @@ export default function ProtocolStep({ project }: StepProps) {
             <TextInput value={p.registration} onCommit={(registration) => set({ registration })} placeholder="Např. OSF, https://osf.io/…, registrováno 3. 2. 2026" />
           </Field>
         </div>
+      </section>
+
+      <section className="card">
+        <h3>Hodnotitelé</h3>
+        <p className="small muted">
+          Když záznamy třídí dva lidé nezávisle na sobě, sníží se riziko, že vhodná studie vypadne omylem nebo kvůli předpojatosti jednoho hodnotitele. U systematických přehledů se to očekává; u bakalářské práce obvykle třídí autor sám a uvede to mezi omezeními, případně část záznamů nezávisle ověří vedoucí.
+        </p>
+        {project.reviewerCopy ? (
+          <Notice>Toto je kopie projektu pro druhého hodnotitele; nastavení hodnotitelů se mění v hlavním projektu.</Notice>
+        ) : (
+          <>
+            <Seg
+              ariaLabel="Počet hodnotitelů"
+              value={project.team.double ? 'double' : 'single'}
+              options={[
+                { id: 'single', label: 'Jeden hodnotitel' },
+                { id: 'double', label: 'Dva nezávislí hodnotitelé' },
+              ]}
+              onChange={(v) => {
+                const double = v === 'double';
+                if (double === project.team.double) return;
+                if (window.confirm(double ? 'Zapnout třídění dvěma hodnotiteli? Dosavadní rozhodnutí se zapíšou jako rozhodnutí prvního hodnotitele a záznamy budou čekat na druhého.' : 'Vrátit se k jednomu hodnotiteli? U záznamů bez shody se použije rozhodnutí prvního hodnotitele.')) void setDoubleMode(project, double);
+              }}
+            />
+            {project.team.double ? (
+              <div className="grid2" style={{ marginTop: 14 }}>
+                {project.team.reviewers.map((r, i) => (
+                  <Field key={r.id} label={`${i + 1}. hodnotitel`} hint={i === 0 ? 'Jméno nebo iniciály; objeví se v metodice.' : undefined}>
+                    <TextInput value={r.name} onCommit={(name) => patchProject(project.id, { team: { ...project.team, reviewers: project.team.reviewers.map((x) => (x.id === r.id ? { ...x, name } : x)) } })} />
+                  </Field>
+                ))}
+              </div>
+            ) : null}
+            {project.team.double ? (
+              <p className="small muted" style={{ marginTop: 10, marginBottom: 0 }}>
+                Hodnotitelé mohou třídit střídavě na jednom počítači, nebo každý na svém – výměnu souborů najdete v krocích Třídění a Posouzení plných textů. Aplikace spočítá míru shody (Cohenovo κ) a ukáže neshody k vyřešení.
+              </p>
+            ) : null}
+          </>
+        )}
       </section>
 
       <section className="card">

@@ -9,6 +9,8 @@ export interface Study {
   yi: number;
   vi: number;
   subgroup?: string;
+  /** Studie, ze které efekt pochází (liší se od id, když má studie více efektů). */
+  cluster?: string;
 }
 
 export interface MetaOptions {
@@ -191,13 +193,16 @@ export interface SubgroupResult {
   p: number;
 }
 
-export function subgroupAnalysis(studies: Study[], opts: MetaOptions): SubgroupResult | null {
+/** `fit` umožňuje použít jiný model než běžnou metaanalýzu (např. tříúrovňový). */
+export function subgroupAnalysis(studies: Study[], opts: MetaOptions, fit: (members: Study[]) => MetaResult | null = (members) => metaAnalyze(members, opts)): SubgroupResult | null {
   const names = [...new Set(studies.map((s) => (s.subgroup ?? '').trim() || 'neuvedeno'))].sort((a, b) => a.localeCompare(b, 'cs'));
   if (names.length < 2) return null;
-  const groups = names.map((name) => {
+  const fitted = names.map((name) => {
     const members = studies.filter((s) => ((s.subgroup ?? '').trim() || 'neuvedeno') === name);
-    return { name, studies: members, result: metaAnalyze(members, opts)! };
+    return { name, studies: members, result: fit(members) };
   });
+  if (fitted.some((g) => !g.result)) return null;
+  const groups = fitted as { name: string; studies: Study[]; result: MetaResult }[];
   const w = groups.map((g) => 1 / (g.result.se * g.result.se));
   const sw = sum(w);
   const pooled = sum(w.map((wi, i) => wi * groups[i].result.estimate)) / sw;

@@ -51,6 +51,7 @@ export interface Protocol {
   /** Plánované zdroje (databáze, šedá literatura…), jeden na řádek. */
   sources: string;
   registration: string;
+  /** Volný popis toho, kdo vybírá a hodnotí (objeví se v metodice). */
   reviewers: string;
   /** Slova zvýrazněná při třídění zeleně / červeně, oddělená čárkou. */
   highlightInclude: string;
@@ -93,6 +94,19 @@ export type Screen1 = 'pending' | 'include' | 'maybe' | 'exclude';
 export type Screen2 = 'pending' | 'include' | 'exclude';
 export type Fulltext = 'pending' | 'retrieved' | 'notRetrieved';
 
+/** Rozhodnutí jednoho hodnotitele o plném textu. */
+export interface Vote2 {
+  decision: Screen2;
+  reason: string;
+}
+
+/**
+ * Vstupní čísla jednoho efektu (např. průměry, SD a n obou skupin). Klíče začínající
+ * podtržítkem nesou doplňující údaje: `_label` označení efektu (časový bod, podskupina),
+ * `_t1` a `_t2` názvy srovnávaných léčeb u síťové metaanalýzy.
+ */
+export type EffectInput = Record<string, string>;
+
 export interface RecordItem {
   id: string;
   projectId: string;
@@ -114,14 +128,21 @@ export interface RecordItem {
   pubType: string;
   /** Id záznamu, se kterým byl tento sloučen jako duplicita. */
   duplicateOf: string | null;
+  /** Výsledné rozhodnutí; při dvou hodnotitelích shoda obou nebo vyřešená neshoda. */
   screen1: Screen1;
   fulltext: Fulltext;
   screen2: Screen2;
   excludeReason: string;
+  /** Rozhodnutí jednotlivých hodnotitelů při třídění podle abstraktu: id hodnotitele → rozhodnutí. */
+  votes1: Record<string, Screen1>;
+  /** Rozhodnutí jednotlivých hodnotitelů o plném textu. */
+  votes2: Record<string, Vote2>;
+  /** Id záznamu v projektu, ze kterého byl načten – podle něj se párují rozhodnutí druhého hodnotitele. */
+  originId?: string;
   /** Extrahovaná data: id pole → hodnota. */
   extraction: Record<string, string>;
-  /** Data pro metaanalýzu: id výstupu → vstupní čísla. */
-  effects: Record<string, Record<string, string>>;
+  /** Data pro metaanalýzu: id výstupu → jeden nebo více efektů ze studie. */
+  effects: Record<string, EffectInput[]>;
   /** Hodnocení kvality: id položky → id úrovně. */
   quality: Record<string, string>;
   qualityOverall: string;
@@ -171,6 +192,12 @@ export interface OutcomeDef {
   name: string;
   measure: Measure;
   note: string;
+  /** Síťová metaanalýza: u každého efektu se zapisují názvy obou srovnávaných léčeb. */
+  network?: boolean;
+  /** Nižší hodnota efektu je lepší (úmrtí, bolest) – určuje pořadí léčeb. */
+  smallerBetter?: boolean;
+  /** Referenční léčba sítě; prázdné = nejčastější. */
+  reference?: string;
 }
 
 export interface Theme {
@@ -195,6 +222,12 @@ export interface SynthesisState {
   tau2: 'REML' | 'DL';
   knha: boolean;
   subgroupField: string;
+  /** Více efektů z jedné studie: sloučit do jednoho, nebo tříúrovňový model. */
+  dependence: 'aggregate' | 'multilevel';
+  /** Předpokládaná korelace efektů uvnitř studie (pro sloučení). */
+  rho: number;
+  /** Pole z extrakce použitá jako moderátory v metaregresi. */
+  moderators: string[];
   chartFields: string[];
   grade: Record<string, GradeRating>;
 }
@@ -223,8 +256,21 @@ export interface ChecklistAnswer {
 
 // ---- Projekt ---------------------------------------------------------------
 
+export interface Reviewer {
+  id: string;
+  name: string;
+}
+
+export interface Team {
+  /** true = třídění provádějí dva hodnotitelé nezávisle. */
+  double: boolean;
+  reviewers: Reviewer[];
+}
+
 export interface Project {
   id: string;
+  /** Stálé označení projektu, které se nemění při načtení ze zálohy – páruje soubory hodnotitelů. */
+  shareId: string;
   title: string;
   type: ReviewType;
   createdAt: string;
@@ -244,8 +290,11 @@ export interface Project {
   manuscript: ManuscriptState;
   checklist: Record<string, ChecklistAnswer>;
   done: Partial<Record<StepId, boolean>>;
+  team: Team;
+  /** Kopie projektu určená druhému hodnotiteli: id hodnotitele, který v ní třídí. */
+  reviewerCopy?: string;
   /** Ukázkový projekt s předvyplněnými daty. */
-  demo?: boolean;
+  demo?: boolean | string;
 }
 
 export interface StoredFile {
@@ -259,8 +308,21 @@ export interface StoredFile {
 /** Podoba zálohy projektu (export / import JSON). */
 export interface ProjectBackup {
   format: 'pruvodce-prehledy';
-  version: 1;
+  version: 1 | 2;
   exportedAt: string;
   project: Project;
   records: RecordItem[];
+}
+
+/** Soubor s rozhodnutími jednoho hodnotitele, který se načítá do hlavního projektu. */
+export interface VotesFile {
+  format: 'pruvodce-prehledy-rozhodnuti';
+  version: 1;
+  exportedAt: string;
+  shareId: string;
+  projectTitle: string;
+  reviewer: Reviewer;
+  /** Klíč = id záznamu v hlavním projektu. */
+  votes1: Record<string, Screen1>;
+  votes2: Record<string, Vote2>;
 }

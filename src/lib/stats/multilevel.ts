@@ -65,6 +65,8 @@ export interface MlResult {
   piHigh: number | null;
   logLik: number;
   converged: boolean;
+  /** Váhy jednotlivých efektů v souhrnném odhadu v procentech (jen bez moderátorů). */
+  weights: number[];
 }
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
@@ -75,6 +77,8 @@ interface State {
   Py: number[];
   b: number[];
   vb: Matrix;
+  /** Řádkové součty V⁻¹X – u modelu bez moderátorů váhy efektů. */
+  A: Matrix;
 }
 
 /**
@@ -130,7 +134,7 @@ export function multilevel(y: number[], v: number[], cluster: string[], X?: Matr
     for (let i = 0; i < k; i++) for (let a = 0; a < p; a++) for (let c = 0; c < p; c++) XtX[a][c] += Xm[i][a] * Xm[i][c];
     const ll = -0.5 * (k - p) * Math.log(2 * Math.PI) + 0.5 * logDetSpd(XtX) - 0.5 * logDetV - 0.5 * logDetSpd(XtVX) - 0.5 * sum(y.map((yi, i) => yi * Py[i]));
     const b = matVec(B, Xm[0].map((_, c) => sum(A.map((row, i) => row[c] * y[i]))));
-    return { ll, P, Py, b, vb: B };
+    return { ll, P, Py, b, vb: B, A };
   };
 
   // Výchozí hodnoty: polovina hrubého odhadu celkového rozptylu efektů na každou složku.
@@ -268,5 +272,6 @@ export function multilevel(y: number[], v: number[], cluster: string[], X?: Matr
     piHigh: p === 1 ? first.b + half : null,
     logLik: state.ll,
     converged,
+    weights: p === 1 ? state.A.map((row) => (100 * row[0]) / sum(state.A.map((x) => x[0]))) : [],
   };
 }

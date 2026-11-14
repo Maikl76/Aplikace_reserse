@@ -130,7 +130,10 @@ describe('sestavení textu', () => {
     expect(res).toContain('I² = 92,2 %');
     expect(res).toContain('k = 13');
     expect(res).toContain('Eggerův test');
-    expect(get('r-synthesis').extras.filter((b) => b.t === 'figure')).toHaveLength(1);
+    // Lesní graf a bublinový graf metaregrese (moderátor: zeměpisná šířka).
+    expect(get('r-synthesis').extras.filter((b) => b.t === 'figure')).toHaveLength(2);
+    expect(res).toContain('Metaregrese (studií k = 13; tabulka 3): test moderátorů Q(1) = 16,36, p < 0,001; moderátory vysvětlily 75,6 % rozptylu mezi studiemi');
+    expect(get('m-synthesis').generated).toContain('metaregresí se smíšenými efekty; moderátory byly: zeměpisná šířka (°)');
     expect(get('r-selection').generated).toContain('Do přehledu byly zařazeny studie (n = 13; obrázek 1).');
     expect(get('references').extras).toHaveLength(13);
     const table = get('r-characteristics').extras[0];
@@ -215,10 +218,10 @@ describe('export do Wordu', () => {
     expect(xml).toContain('Metodika');
     expect(xml).toContain('Bakalářská práce');
     expect(xml).toContain('RR = 0,49');
-    expect(xml.split('<w:tbl>').length - 1).toBe(3); // charakteristiky, deník hledání, kontrolní seznam
+    expect(xml.split('<w:tbl>').length - 1).toBe(4); // charakteristiky, metaregrese, deník hledání, kontrolní seznam
     expect(xml).toContain('w:highlight');
-    // Dva obrázky (diagram a lesní graf); shodná data knihovna uloží jen jednou.
-    expect(xml.split('<w:drawing>').length - 1).toBe(2);
+    // Tři obrázky (diagram, lesní graf, metaregrese); shodná data knihovna uloží jen jednou.
+    expect(xml.split('<w:drawing>').length - 1).toBe(3);
     expect(Object.keys(zip.files).filter((f) => f.startsWith('word/media/')).length).toBeGreaterThanOrEqual(1);
   }, 30000);
 });

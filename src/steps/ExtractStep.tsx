@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react';
-import { studyLabels } from '../lib/analysis';
-import { mergeEffect, mergeRecord, patchProject, patchRecord } from '../lib/db';
+import { effectRows, studyLabels } from '../lib/analysis';
+import { addEffect, mergeEffect, mergeRecord, patchProject, patchRecord, removeEffect } from '../lib/db';
 import { includedRecords } from '../lib/flow';
 import { unitOf } from '../lib/manuscript/build';
 import { REVIEW_TYPES } from '../lib/reviewTypes';
 import { MEASURES, backTransform, computeEffect } from '../lib/stats/effects';
-import type { FieldDef, Measure, OutcomeDef, RecordItem } from '../lib/types';
+import type { EffectInput, FieldDef, Measure, OutcomeDef, RecordItem } from '../lib/types';
 import { download, fmt, slug, uid } from '../lib/util';
 import type { StepProps } from '../pages/ProjectPage';
-import { Empty, Field, Notice, TextArea, TextInput } from '../ui';
+import { Check, Empty, Field, Notice, Seg, TextArea, TextInput } from '../ui';
 import { RecordLinks } from './common';
 
 const KIND_LABELS: Record<FieldDef['kind'], string> = { text: 'text', number: 'číslo', category: 'kategorie' };
@@ -132,7 +132,7 @@ export default function ExtractStep({ project, records }: StepProps) {
                         <h4 style={{ margin: '6px 0 8px' }}>Data pro metaanalýzu</h4>
                         <div className="stack">
                           {project.outcomes.map((o) => (
-                            <EffectForm key={o.id} record={current} outcome={o} />
+                            <EffectForm key={o.id} record={current} outcome={o} treatments={treatmentNames(ordered, o.id)} />
                           ))}
                         </div>
                       </div>
@@ -158,22 +158,95 @@ export default function ExtractStep({ project, records }: StepProps) {
   );
 }
 
-/** Zadání čísel jednoho výstupu s okamžitým výpočtem velikosti účinku. */
-function EffectForm({ record, outcome }: { record: RecordItem; outcome: OutcomeDef }) {
+/** Názvy léčeb, které už u daného výstupu někdo zapsal – nabízejí se při psaní, aby se psaly stejně. */
+function treatmentNames(records: RecordItem[], outcomeId: string): string[] {
+  const names = new Map<string, string>();
+  for (const r of records) for (const row of r.effects[outcomeId] ?? []) for (const k of ['_t1', '_t2']) {
+    const v = (row[k] ?? '').trim();
+    if (v && !names.has(v.toLocaleLowerCase('cs'))) names.set(v.toLocaleLowerCase('cs'), v);
+  }
+  return [...names.values()].sort((a, b) => a.localeCompare(b, 'cs'));
+}
+
+/** Zadání čísel jednoho výstupu s okamžitým výpočtem velikosti účinku; studie může mít více efektů. */
+function EffectForm({ record, outcome, treatments }: { record: RecordItem; outcome: OutcomeDef; treatments: string[] }) {
   const m = MEASURES[outcome.measure];
-  const raw = record.effects[outcome.id] ?? {};
-  const res = computeEffect(outcome.measure, raw);
-  const sh = (v: number) => fmt(backTransform(outcome.measure, v), 2);
+  const rows = effectRows(record, outcome.id);
+  const many = rows.length > 1;
+  const listId = `treatments-${outcome.id}`;
   return (
     <div style={{ border: '1px solid var(--line)', borderRadius: 8, padding: 12 }}>
       <div className="row between" style={{ marginBottom: 8 }}>
         <strong>{outcome.name || 'Výstup bez názvu'}</strong>
-        <span className="pill">{m.short}</span>
+        <span className="pill">
+          {m.short}
+          {outcome.network ? ' · síť léčeb' : ''}
+        </span>
       </div>
+      {outcome.network ? (
+        <datalist id={listId}>
+          {treatments.map((t) => (
+            <option key={t} value={t} />
+          ))}
+        </datalist>
+      ) : null}
+      <div className="stack">
+        {rows.map((raw, index) => (
+          <EffectRow key={index} record={record} outcome={outcome} raw={raw} index={index} many={many} listId={listId} />
+        ))}
+      </div>
+      <div className="row" style={{ marginTop: 10 }}>
+        <button type="button" className="btn small" onClick={() => addEffect(record.id, outcome.id)}>
+          {outcome.network ? 'Přidat další srovnání z této studie' : 'Přidat další efekt z této studie'}
+        </button>
+        <span className="small muted grow" style={{ flexBasis: 260 }}>
+          {outcome.network
+            ? 'Studie se třemi a více rameny: zapište srovnání každého ramene se stejným referenčním ramenem (např. A vs. placebo a B vs. placebo).'
+            : many
+              ? 'Efekty z jedné studie spolu souvisejí. Jak s nimi analýza naloží, nastavíte v kroku Syntéza.'
+              : 'Použijte, když studie uvádí výstup pro více časových bodů, podskupin nebo intervenčních ramen.'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function EffectRow({ record, outcome, raw, index, many, listId }: { record: RecordItem; outcome: OutcomeDef; raw: EffectInput; index: number; many: boolean; listId: string }) {
+  const m = MEASURES[outcome.measure];
+  const res = computeEffect(outcome.measure, raw);
+  const sh = (v: number) => fmt(backTransform(outcome.measure, v), 2);
+  const set = (partial: EffectInput) => mergeEffect(record.id, outcome.id, index, partial);
+  return (
+    <div style={many ? { borderTop: index > 0 ? '1px dashed var(--line)' : undefined, paddingTop: index > 0 ? 12 : 0 } : undefined}>
+      {many || outcome.network ? (
+        <div className="grid3" style={{ marginBottom: 8 }}>
+          {outcome.network ? (
+            <>
+              <Field label="Léčba 1 (intervenční skupina)">
+                <TextInput value={raw._t1 ?? ''} list={listId} placeholder="např. skupinové poradenství" onCommit={(v) => set({ _t1: v })} />
+              </Field>
+              <Field label="Léčba 2 (srovnávací skupina)">
+                <TextInput value={raw._t2 ?? ''} list={listId} placeholder="např. bez intervence" onCommit={(v) => set({ _t2: v })} />
+              </Field>
+            </>
+          ) : (
+            <Field label={`Označení efektu ${index + 1}`}>
+              <TextInput value={raw._label ?? ''} placeholder="např. 12 týdnů, dívky, vyšší dávka" onCommit={(v) => set({ _label: v })} />
+            </Field>
+          )}
+          {many ? (
+            <div style={{ alignSelf: 'end' }}>
+              <button type="button" className="btn small ghost danger" onClick={() => removeEffect(record.id, outcome.id, index)}>
+                Odebrat {outcome.network ? 'srovnání' : 'efekt'}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       <div className="grid3">
         {m.inputs.map((inp) => (
           <Field key={inp.id} label={inp.label}>
-            <TextInput value={raw[inp.id] ?? ''} inputMode="decimal" onCommit={(v) => mergeEffect(record.id, outcome.id, { [inp.id]: v })} />
+            <TextInput value={raw[inp.id] ?? ''} inputMode="decimal" onCommit={(v) => set({ [inp.id]: v })} />
           </Field>
         ))}
       </div>
@@ -181,6 +254,7 @@ function EffectForm({ record, outcome }: { record: RecordItem; outcome: OutcomeD
         {res.ok ? (
           <span>
             Spočtený efekt: <strong>{m.short} = {sh(res.effect.yi)}</strong> (95% CI {sh(res.effect.yi - Z * Math.sqrt(res.effect.vi))} až {sh(res.effect.yi + Z * Math.sqrt(res.effect.vi))}){res.effect.note ? ` · ${res.effect.note}` : ''}
+            {outcome.network && (!(raw._t1 ?? '').trim() || !(raw._t2 ?? '').trim()) ? <span className="muted"> · doplňte názvy obou léčeb</span> : null}
           </span>
         ) : (
           <span className="muted">{res.error}</span>
@@ -271,6 +345,26 @@ function FormEditor({ project, withMeta }: { project: StepProps['project']; with
                   <div className="small muted" style={{ marginTop: 4 }}>
                     {MEASURES[o.measure].explain}
                   </div>
+                  <div className="row" style={{ marginTop: 6, gap: 16 }}>
+                    <Check checked={!!o.network} onChange={(network) => saveOutcomes(outcomes.map((x) => (x.id === o.id ? { ...x, network } : x)))}>
+                      Síťová metaanalýza (studie srovnávají tři a více různých léčeb)
+                    </Check>
+                    {o.network ? (
+                      <span className="row" style={{ gap: 8 }}>
+                        <span className="small">Lepší výsledek je</span>
+                        <Seg
+                          ariaLabel="Směr lepšího výsledku"
+                          value={o.smallerBetter ? 'low' : 'high'}
+                          options={[
+                            { id: 'high', label: 'vyšší hodnota' },
+                            { id: 'low', label: 'nižší hodnota' },
+                          ]}
+                          onChange={(v) => saveOutcomes(outcomes.map((x) => (x.id === o.id ? { ...x, smallerBetter: v === 'low' } : x)))}
+                        />
+                      </span>
+                    ) : null}
+                  </div>
+                  {o.network && o.measure === 'COR' ? <div className="small" style={{ color: 'var(--critical)', marginTop: 4 }}>Síť léčeb nelze počítat z korelací – zvolte míru, která srovnává dvě skupiny.</div> : null}
                 </div>
               ))}
               {outcomes.length === 0 ? <Notice>Zatím není definován žádný výstup. Bez něj nelze metaanalýzu spočítat.</Notice> : null}

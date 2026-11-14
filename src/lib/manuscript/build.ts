@@ -2,20 +2,21 @@
 // Metodika a výsledky se generují z toho, co je v projektu skutečně zapsáno;
 // úvod, diskusi a závěr píše člověk. Každý oddíl lze převzít a upravit.
 
-import { GRADE_DOMAINS, analyzeOutcome, countBy, countByYear, forestFooter, forestRows, gradeCertainty, heterogeneityText, overlapOf, studyLabels } from '../analysis';
+import { GRADE_DOMAINS, analyzeNetwork, analyzeOutcome, analyzeRegression, countBy, countByYear, forestFooter, forestRows, gradeCertainty, heterogeneityText, overlapOf, studyLabels } from '../analysis';
 import { CHECKLISTS } from '../checklists';
 import { buildCitations, type Span } from '../citations';
-import { columnsSvg, forestSvg, prismaSvg, type FigMode, type FlowUnit } from '../figures';
+import { bubbleSvg, columnsSvg, forestSvg, networkSvg, prismaSvg, type FigMode, type FlowUnit, type ForestRow } from '../figures';
 import { flowCounts, fulltextQueue, includedRecords } from '../flow';
 import { levelOf, toolFor } from '../quality';
 import { FRAMEWORKS, REVIEW_TYPES, hasStep } from '../reviewTypes';
+import { interpretKappa, isDouble, reviewerName, stage1Stats, stage2Stats } from '../reviewers';
 import { MEASURES, backTransform } from '../stats/effects';
 import { interpretI2 } from '../stats/meta';
 import type { Project, RecordItem, Template } from '../types';
 import { fmt, fmtP, formatDate, lines, plural } from '../util';
 
 export const APP_NAME = 'Průvodce přehledem';
-export const APP_VERSION = '0.1';
+export const APP_VERSION = '0.2';
 
 export type Block =
   | { t: 'h'; level: 1 | 2; text: string }
@@ -84,6 +85,7 @@ export function buildManuscript(project: Project, records: RecordItem[], mode: F
   const citeOf = new Map(cites.map((c) => [c.id, c]));
   const tool = hasStep(project.type, 'quality') ? toolFor(project) : null;
   const twoStage = hasStep(project.type, 'screen2');
+  const double = isDouble(project);
   const p = project.protocol;
   const q = project.question;
 
@@ -188,7 +190,9 @@ export function buildManuscript(project: Project, records: RecordItem[], mode: F
     kind: 'auto',
     guidance: 'Úvodní odstavec metodiky: typ přehledu, standard a registrace protokolu.',
     generated: [
-      `Byl proveden ${lower(conf.name)} (${conf.english}). Postup i struktura zprávy se řídí standardem ${conf.standard.name}.`,
+      `Byl proveden ${lower(conf.name)} (${conf.english}). Postup i struktura zprávy se řídí standardem ${conf.standard.name}${
+        conf.synthesis.includes('meta') && project.outcomes.some((o) => o.network) ? ' a jeho rozšířením pro síťové metaanalýzy (PRISMA-NMA; Hutton et al., 2015)' : ''
+      }.`,
       p.registration.trim() ? `Protokol přehledu: ${sentence(p.registration)}` : project.type === 'narrative' ? '' : 'Protokol přehledu nebyl registrován.',
       !thesis && q.text.trim() ? `Výzkumná otázka zněla: ${sentence(q.text)}${elements.length ? ` Byla formulována pomocí rámce ${framework.name}: ${elements.join('; ')}.` : ''}` : '',
     ]
@@ -245,7 +249,11 @@ export function buildManuscript(project: Project, records: RecordItem[], mode: F
       twoStage
         ? 'Záznamy byly nejprve tříděny podle názvu a abstraktu. U záznamů, které prošly, byly získány plné texty a posouzeny podle kritérií způsobilosti; u vyřazených plných textů byl zaznamenán důvod.'
         : 'Zdroje byly vybírány podle názvu, abstraktu a případně plného textu s ohledem na vymezení tématu.',
-      p.reviewers.trim() ? `Výběr prováděl: ${sentence(p.reviewers)}` : todo('kdo třídil a zda nezávisle – vyplňte v kroku Protokol'),
+      double
+        ? `Třídění${twoStage ? ' podle názvu a abstraktu i posouzení plných textů' : ''} prováděli nezávisle dva hodnotitelé (${project.team.reviewers.map((r) => reviewerName(project.team, r.id)).join(', ')}), kteří při rozhodování neznali rozhodnutí toho druhého. Neshody byly řešeny diskusí do dosažení shody. Míra shody před řešením neshod byla vyjádřena Cohenovým koeficientem κ.${p.reviewers.trim() ? ` ${sentence(p.reviewers)}` : ''}`
+        : p.reviewers.trim()
+          ? `Výběr prováděl: ${sentence(p.reviewers)}`
+          : todo('kdo třídil a zda nezávisle – vyplňte v kroku Protokol'),
     ].join(' '),
   });
 
@@ -287,23 +295,56 @@ export function buildManuscript(project: Project, records: RecordItem[], mode: F
 
   const syn = project.synthesis;
   const synth: string[] = [];
-  if (conf.synthesis.includes('meta') && project.outcomes.length) {
-    synth.push(
-      `Pro každý výstup byla z údajů jednotlivých studií spočtena velikost účinku a její rozptyl. Studie byly sloučeny metodou inverzního rozptylu v modelu ${
-        syn.model === 'random'
-          ? `s náhodnými efekty; rozptyl mezi studiemi (τ²) byl odhadnut metodou ${syn.tau2 === 'REML' ? 'omezené maximální věrohodnosti (REML)' : 'DerSimoniana a Lairda'}${
-              syn.knha ? ' a intervaly spolehlivosti byly upraveny podle Knappa a Hartunga' : ''
-            }`
-          : 's pevným efektem'
-      }. Heterogenita byla hodnocena Cochranovým Q testem, statistikou I² a predikčním intervalem.`,
-    );
+  // Analýzy počítáme jednou: z nich vychází popis metod i výsledky.
+  const withMeta = conf.synthesis.includes('meta');
+  const pairwise = withMeta ? project.outcomes.filter((o) => !o.network) : [];
+  const networks = withMeta ? project.outcomes.filter((o) => o.network) : [];
+  const analyses = pairwise.map((o) => analyzeOutcome(project, included, o));
+  const regressions = analyses.map((a) => (a.result ? analyzeRegression(project, included, a) : null));
+  const nets = networks.map((o) => analyzeNetwork(project, included, o));
+  if (pairwise.length) {
+    const anyMulti = analyses.some((a) => a.method === 'multilevel');
+    const anyAggregate = analyses.some((a) => a.method === 'aggregate');
+    const allMulti = analyses.length > 0 && analyses.every((a) => a.method === 'multilevel');
+    if (!allMulti) {
+      synth.push(
+        `Pro každý výstup byla z údajů jednotlivých studií spočtena velikost účinku a její rozptyl. Studie byly sloučeny metodou inverzního rozptylu v modelu ${
+          syn.model === 'random'
+            ? `s náhodnými efekty; rozptyl mezi studiemi (τ²) byl odhadnut metodou ${syn.tau2 === 'REML' ? 'omezené maximální věrohodnosti (REML)' : 'DerSimoniana a Lairda'}${
+                syn.knha ? ' a intervaly spolehlivosti byly upraveny podle Knappa a Hartunga' : ''
+              }`
+            : 's pevným efektem'
+        }. Heterogenita byla hodnocena Cochranovým Q testem, statistikou I² a predikčním intervalem.`,
+      );
+    } else synth.push('Pro každý výstup byla z údajů jednotlivých studií spočtena velikost účinku a její rozptyl.');
+    if (anyAggregate) {
+      synth.push(
+        `Pokud studie poskytla pro tentýž výstup více efektů (například pro více časových bodů nebo podskupin), byly tyto efekty sloučeny do jednoho efektu studie: použit byl jejich průměr a rozptyl byl spočten za předpokladu korelace ρ = ${fmt(syn.rho, 2)} mezi efekty téže studie (Borenstein et al., 2009). ${todo('zdůvodnění zvolené korelace a výsledek citlivostní analýzy s jinou hodnotou')}`,
+      );
+    }
+    if (anyMulti) {
+      synth.push(
+        'Protože některé studie poskytly pro tentýž výstup více efektů, které nejsou nezávislé, byl použit tříúrovňový model s náhodnými efekty (efekty vnořené ve studiích; odhad REML). Model odděluje rozptyl mezi studiemi od rozptylu mezi efekty uvnitř téže studie (Cheung, 2014; Van den Noortgate et al., 2013).',
+      );
+    }
     const field = project.fields.find((f) => f.id === syn.subgroupField);
     if (field) synth.push(`Možné příčiny heterogenity byly zkoumány analýzou podskupin podle proměnné „${lower(field.label)}“.`);
+    const mods = project.fields.filter((f) => syn.moderators.includes(f.id) && f.kind !== 'text');
+    if (mods.length && regressions.some((r) => r?.coef.length)) {
+      synth.push(`Souvislost velikosti účinku s vlastnostmi studií byla zkoumána metaregresí se smíšenými efekty; moderátory byly: ${joinCz(mods.map((f) => lower(f.label)))}.`);
+    }
     synth.push(
       `Robustnost výsledků byla ověřena postupným vynecháním jednotlivých studií. Asymetrie trychtýřového grafu byla posouzena vizuálně a při alespoň deseti studiích Eggerovým testem. Výpočty provedla aplikace ${APP_NAME}, jejíž statistické funkce jsou ověřeny proti balíku metafor (Viechtbauer, 2010).`,
     );
-    if (Object.keys(syn.grade).length) synth.push('Jistota důkazů pro jednotlivé výstupy byla hodnocena přístupem GRADE.');
   }
+  if (networks.length) {
+    synth.push(
+      `Pro ${networks.length === 1 ? `výstup „${networks[0].name}“` : `výstupy ${joinCz(networks.map((o) => `„${o.name}“`))}`}, u kterého studie srovnávaly tři a více různých intervencí, byla provedena síťová metaanalýza. Použit byl frekventistický kontrastní model ${
+        syn.model === 'random' ? 's náhodnými efekty; heterogenita (τ²) byla předpokládána stejná pro všechna srovnání a odhadnuta metodou REML' : 'se společným efektem'
+      }. U studií se třemi a více rameny byla zohledněna korelace srovnání se společným ramenem. Intervence byly seřazeny podle P-skóre (Rücker a Schwarzer, 2015). Konzistence přímých a nepřímých důkazů byla posouzena rozkladem statistiky Q na heterogenitu uvnitř designů a nekonzistenci mezi designy (Higgins et al., 2012) a srovnáním přímých a nepřímých odhadů jednotlivých srovnání. Výpočty provedla aplikace ${APP_NAME}, ověřená proti balíku metafor (Viechtbauer, 2010). ${todo('posouzení předpokladu tranzitivity – zda jsou studie různých srovnání podobné v charakteristikách, které ovlivňují účinek')}`,
+    );
+  }
+  if (withMeta && project.outcomes.length && Object.keys(syn.grade).length) synth.push('Jistota důkazů pro jednotlivé výstupy byla hodnocena přístupem GRADE.');
   if (conf.synthesis.includes('charting')) {
     const fields = project.fields.filter((f) => syn.chartFields.includes(f.id)).map((f) => lower(f.label));
     synth.push(`Zmapovaná data byla shrnuta četnostmi podle roku publikace${fields.length ? ` a podle těchto hledisek: ${joinCz(fields)}` : ''}.`);
@@ -338,6 +379,17 @@ export function buildManuscript(project: Project, records: RecordItem[], mode: F
         counts.excluded2.length ? `: ${counts.excluded2.map((e) => `${lower(e.reason)} (${n(e.n)})`).join(', ')}` : ''
       }. Seznam vyřazených plných textů s důvody uvádí příloha B.`,
     );
+  }
+  if (double) {
+    const describe = (label: string, st: ReturnType<typeof stage1Stats>) => {
+      const ag = st.agreement;
+      if (ag.n === 0) return '';
+      return `${label} se hodnotitelé shodli u ${fmt(100 * ag.po, 1)} % záznamů posouzených oběma (${n(ag.n)}${ag.kappa != null ? `; Cohenovo κ = ${fmt(ag.kappa, 2)}, shoda ${interpretKappa(ag.kappa)}` : ''}); neshody (${n(st.conflicts)}) byly řešeny dohodou${st.open ? ` ${todo(plural(st.open, 'neshoda zatím není vyřešena', 'neshody zatím nejsou vyřešeny', 'neshod zatím není vyřešeno'))}` : ''}.`;
+    };
+    const a1 = describe('Při třídění podle názvu a abstraktu', stage1Stats(records, project.team));
+    const a2 = twoStage ? describe('Při posuzování plných textů', stage2Stats(fulltextQueue(records), project.team)) : '';
+    if (a1) selection.push(a1);
+    if (a2) selection.push(a2);
   }
   selection.push(`Do přehledu byly zařazeny ${U.nom} (${n(counts.included)}; ${flowFig.ref}).`);
   if (counts.pending1 || counts.pending2) selection.push(todo(`třídění není dokončeno – neposouzeno zůstává ${counts.pending1 + counts.pending2} záznamů`));
@@ -386,22 +438,23 @@ export function buildManuscript(project: Project, records: RecordItem[], mode: F
   // Výsledky syntézy.
   const rs: string[] = [];
   const rsExtras: Block[] = [];
-  if (conf.synthesis.includes('meta')) {
-    for (const outcome of project.outcomes) {
-      const a = analyzeOutcome(project, included, outcome);
+  if (withMeta) {
+    analyses.forEach((a, ai) => {
+      const outcome = a.outcome;
       const m = MEASURES[outcome.measure];
       const sh = (v: number) => fmt(backTransform(outcome.measure, v), 2);
       if (!a.result) {
         rs.push(`Výstup „${outcome.name}“: žádná studie neposkytla data potřebná k výpočtu.`);
-        continue;
+        return;
       }
       const r = a.result;
+      const multi = a.method === 'multilevel';
       const fig = figure(`Lesní graf – ${outcome.name} (${m.short})`, forestSvg({ rows: forestRows(a), scale: a.scale, measure: m.short, footer: forestFooter(a), mode }));
       const parts = [
-        `Výstup „${outcome.name}“ (${m.name.toLowerCase()}): do metaanalýzy vstoupily studie v počtu k = ${r.k}.`,
-        `Souhrnný odhad v modelu ${r.model === 'random' ? 's náhodnými efekty' : 's pevným efektem'} byl ${m.short} = ${sh(r.estimate)} (95% CI ${sh(r.ciLow)} až ${sh(r.ciHigh)}; p ${fmtP(r.p)}; ${fig.ref}).`,
+        `Výstup „${outcome.name}“ (${m.name.toLowerCase()}): do metaanalýzy vstoupily studie v počtu k = ${a.nStudies}${a.nEffects > a.nStudies ? ` s celkem ${a.nEffects} efekty${a.method === 'aggregate' ? ', které byly v rámci studií sloučeny' : ''}` : ''}.`,
+        `Souhrnný odhad v ${multi ? 'tříúrovňovém modelu' : `modelu ${r.model === 'random' ? 's náhodnými efekty' : 's pevným efektem'}`} byl ${m.short} = ${sh(r.estimate)} (95% CI ${sh(r.ciLow)} až ${sh(r.ciHigh)}; p ${fmtP(r.p)}; ${fig.ref}).`,
       ];
-      if (r.k > 1) parts.push(`${heterogeneityText(r)}, tedy heterogenita ${interpretI2(r.I2).split(' – ')[0]}.`);
+      if (r.k > 1) parts.push(multi ? `${heterogeneityText(r, a.ml)}.` : `${heterogeneityText(r)}, tedy heterogenita ${interpretI2(r.I2).split(' – ')[0]}.`);
       if (r.piLow != null && r.piHigh != null) parts.push(`95% predikční interval byl ${sh(r.piLow)} až ${sh(r.piHigh)}.`);
       if (a.subgroups) parts.push(`Analýza podskupin: ${a.subgroups.groups.map((g) => `${g.name} – ${m.short} = ${sh(g.result.estimate)} (95% CI ${sh(g.result.ciLow)} až ${sh(g.result.ciHigh)}; k = ${g.result.k})`).join('; ')}. Test rozdílu mezi podskupinami: Q(${a.subgroups.df}) = ${fmt(a.subgroups.Qb, 2)}, p ${fmtP(a.subgroups.p)}.`);
       if (a.loo.length) {
@@ -409,11 +462,92 @@ export function buildManuscript(project: Project, records: RecordItem[], mode: F
         parts.push(`Při postupném vynechání jednotlivých studií se souhrnný odhad pohyboval od ${sh(Math.min(...ests))} do ${sh(Math.max(...ests))}.`);
       }
       if (a.egger && r.k >= 10) parts.push(`Eggerův test asymetrie trychtýřového grafu: t(${a.egger.df}) = ${fmt(a.egger.t, 2)}, p ${fmtP(a.egger.p)}.`);
+      else if (multi) parts.push('Eggerův test nebyl proveden, protože předpokládá nezávislé efekty.');
       else if (r.k > 1) parts.push('Publikační zkreslení nebylo testováno, protože studií bylo méně než deset.');
-      if (a.skipped.length) parts.push(`Z analýzy byly vynechány studie, u nichž nešel efekt spočítat (${a.skipped.map((s) => s.label).join(', ')}).`);
+      if (a.skipped.length) parts.push(`Z analýzy byly vynechány efekty, které nešlo spočítat (${a.skipped.map((x) => x.label).join(', ')}).`);
+      rsExtras.push(fig.block);
+
+      const reg = regressions[ai];
+      if (reg?.coef.length) {
+        const unitName = reg.kind === 'three-level' ? 'efektů' : 'studií';
+        const tb = table(
+          `Metaregrese – ${outcome.name}. Koeficienty jsou na škále, na které se počítá${m.scale === 'log' ? ` (logaritmus ${m.short})` : m.scale === 'z' ? ' (Fisherovo z)' : ''}`,
+          ['Koeficient', 'Odhad', 'SE', '95% CI', reg.test, 'p'],
+          reg.coef.map((c) => [c.name, fmt(c.b, 3), fmt(c.se, 3), `${fmt(c.ciLow, 3)} až ${fmt(c.ciHigh, 3)}`, fmt(c.stat, 2), fmtP(c.p).replace(/^= /, '')]),
+        );
+        parts.push(
+          `Metaregrese (${unitName} k = ${reg.k}; ${tb.ref}): test moderátorů ${reg.test === 't' ? `F(${reg.dfM}, ${reg.dfE})` : `Q(${reg.dfM})`} = ${fmt(reg.QM, 2)}, p ${fmtP(reg.pQM)}${
+            reg.R2 != null ? `; moderátory vysvětlily ${fmt(reg.R2, 1)} % rozptylu mezi studiemi` : ''
+          }; zbytková heterogenita Q(${reg.dfE}) = ${fmt(reg.QE, 2)}, p ${fmtP(reg.pQE)}${reg.I2 != null ? `, I² = ${fmt(reg.I2, 1)} %` : ''}.${reg.k / Math.max(1, reg.design.names.length - 1) < 10 ? ' Vzhledem k malému počtu studií na moderátor je třeba výsledek brát jako orientační.' : ''}`,
+        );
+        rsExtras.push(tb.block);
+        if (reg.bubble) {
+          const bf = figure(`Metaregrese – ${outcome.name} podle proměnné „${lower(reg.bubble.xLabel)}“. Velikost bodu odpovídá váze studie; pás ukazuje 95% interval spolehlivosti`, bubbleSvg({ ...reg.bubble, scale: a.scale, measure: m.short, mode }));
+          parts.push(`Vztah znázorňuje ${bf.ref}.`);
+          rsExtras.push(bf.block);
+        }
+      }
       parts.push(todo('slovní interpretace směru a velikosti účinku'));
       rs.push(parts.join(' '));
-      rsExtras.push(fig.block);
+    });
+
+    for (const net of nets) {
+      const outcome = net.outcome;
+      const m = MEASURES[outcome.measure];
+      const sh = (v: number) => fmt(backTransform(outcome.measure, v), 2);
+      const out = net.outcomeResult;
+      if (!out.ok) {
+        rs.push(`Výstup „${outcome.name}“ (síťová metaanalýza): ${out.error} ${todo('doplňte data v kroku Extrakce dat')}`);
+        continue;
+      }
+      const res = out.result;
+      const gfig = figure(`Síť léčeb – ${outcome.name}. Tloušťka spojnice a číslo u ní udávají počet studií s přímým srovnáním`, networkSvg({ nodes: res.nodes.map((x) => ({ label: x.treatment, studies: x.studies })), edges: res.edges, mode }));
+      const ffig = figure(
+        `Léčby oproti referenční („${res.reference}“) – ${outcome.name} (${m.short})`,
+        forestSvg({
+          rows: res.treatments.map((t, i): ForestRow => ({ kind: 'study', label: t, yi: res.vsReference[i].est, lo: res.vsReference[i].ciLow, hi: res.vsReference[i].ciHigh })).filter((row) => row.label !== res.reference),
+          scale: net.scale,
+          measure: m.short,
+          labelHeader: `Léčba (oproti: ${res.reference})`,
+          footer: [],
+          mode,
+        }),
+      );
+      const order = res.pscore.map((x) => x.treatment);
+      const league = table(
+        `Všechna vzájemná srovnání – ${outcome.name}. V buňce je ${m.short} léčby v řádku oproti léčbě ve sloupci (95% CI); léčby jsou seřazeny podle P-skóre`,
+        ['', ...order],
+        order.map((row) => [
+          row,
+          ...order.map((col) => {
+            if (row === col) return '–';
+            const e = res.league[res.treatments.indexOf(row)][res.treatments.indexOf(col)];
+            return `${sh(e.est)} (${sh(e.ciLow)} až ${sh(e.ciHigh)})`;
+          }),
+        ]),
+      );
+      const rank = table(
+        `Pořadí léčeb podle P-skóre – ${outcome.name}`,
+        ['Pořadí', 'Léčba', 'P-skóre', `${m.short} oproti „${res.reference}“ (95% CI)`, 'Počet studií'],
+        res.pscore.map((x, i) => {
+          const e = res.vsReference[res.treatments.indexOf(x.treatment)];
+          return [`${i + 1}.`, x.treatment, fmt(x.value, 2), x.treatment === res.reference ? 'referenční' : `${sh(e.est)} (${sh(e.ciLow)} až ${sh(e.ciHigh)})`, String(res.nodes.find((nd) => nd.treatment === x.treatment)?.studies ?? '')];
+        }),
+      );
+      const parts = [
+        `Výstup „${outcome.name}“ (${m.name.toLowerCase()}): síť tvořily studie (${n(res.studies)}${res.multiArm ? `, z toho se třemi a více rameny ${n(res.multiArm)}` : ''}), které srovnávaly ${plural(res.treatments.length, 'léčbu', 'léčby', 'léčeb')} v ${res.edges.length} přímých srovnáních (${gfig.ref}).`,
+        `Odhady účinku jednotlivých léčeb oproti referenční léčbě „${res.reference}“ v modelu ${res.model === 'random' ? 's náhodnými efekty' : 'se společným efektem'} ukazuje ${ffig.ref}, všechna vzájemná srovnání ${league.ref} a pořadí léčeb ${rank.ref}.`,
+        `Nejvyšší P-skóre měla léčba „${res.pscore[0].treatment}“ (${fmt(res.pscore[0].value, 2)}), nejnižší „${res.pscore[res.pscore.length - 1].treatment}“ (${fmt(res.pscore[res.pscore.length - 1].value, 2)}).`,
+      ];
+      if (res.df > 0) parts.push(`Heterogenita a nekonzistence v celé síti: Q(${res.df}) = ${fmt(res.Q, 2)}, p ${fmtP(res.pQ)}; I² = ${fmt(res.I2, 1)} %${res.model === 'random' ? `; τ² = ${fmt(res.tau2, 4)}` : ''}.`);
+      if (res.dfBetween > 0) parts.push(`Test nekonzistence mezi designy: Q(${res.dfBetween}) = ${fmt(res.Qbetween, 2)}, p ${fmtP(res.pBetween)}.`);
+      else parts.push('Konzistenci přímých a nepřímých důkazů nebylo možné testovat, protože síť neobsahuje uzavřené smyčky tvořené různými designy.');
+      const incons = res.split.filter((x) => x.p != null && x.p < 0.05);
+      if (res.split.some((x) => x.p != null)) parts.push(incons.length ? `Přímé a nepřímé odhady se významně lišily u srovnání: ${incons.map((x) => `${x.a} oproti ${x.b} (p ${fmtP(x.p!)})`).join('; ')}.` : 'U žádného srovnání se přímý a nepřímý odhad významně nelišily.');
+      if (out.skipped.length || net.unnamed.length) parts.push(todo(`do sítě nevstoupily všechny studie (${[...out.skipped.map((x) => x.label), ...net.unnamed].join(', ')}) – zkontrolujte data v kroku Extrakce dat`));
+      parts.push(todo('slovní interpretace: které léčby se od sebe spolehlivě liší a jak pevné jsou důkazy pro jednotlivá srovnání'));
+      rs.push(parts.join(' '));
+      rsExtras.push(gfig.block, ffig.block, rank.block, league.block);
     }
     const graded = project.outcomes.filter((o) => syn.grade[o.id]);
     if (graded.length) {

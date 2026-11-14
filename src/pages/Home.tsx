@@ -1,7 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createProject, db, importBackup } from '../lib/db';
-import { createDemoProject } from '../lib/demo';
+import { createDemoProject, createNetworkDemo } from '../lib/demo';
+import { fileSaveSupported, storageStatus, type StorageStatus } from '../lib/storage';
 import { REVIEW_TYPES, TYPE_ORDER, stepsOf } from '../lib/reviewTypes';
 import type { ReviewType } from '../lib/types';
 import { formatDate } from '../lib/util';
@@ -14,6 +15,10 @@ export default function Home() {
   const [title, setTitle] = useState('');
   const [error, setError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  const [storage, setStorage] = useState<StorageStatus | null>(null);
+  useEffect(() => {
+    void storageStatus().then(setStorage);
+  }, []);
 
   const create = async () => {
     if (!type) return;
@@ -87,7 +92,10 @@ export default function Home() {
             Nový přehled
           </button>
           <button type="button" className="btn" onClick={async () => navigate('p', (await createDemoProject()).id)}>
-            Otevřít ukázkový projekt
+            Ukázka: metaanalýza
+          </button>
+          <button type="button" className="btn" onClick={async () => navigate('p', (await createNetworkDemo()).id)}>
+            Ukázka: síťová metaanalýza
           </button>
           <button type="button" className="btn" onClick={() => fileRef.current?.click()}>
             Načíst zálohu
@@ -116,6 +124,7 @@ export default function Home() {
                   </div>
                 </div>
                 {p.demo ? <span className="pill">ukázka</span> : null}
+                {p.reviewerCopy ? <span className="pill">kopie pro 2. hodnotitele</span> : null}
                 <div style={{ width: 150 }}>
                   <div className="small muted" style={{ marginBottom: 4 }}>
                     Hotovo {done} z {steps.length} kroků
@@ -132,9 +141,27 @@ export default function Home() {
         <Empty title="Zatím tu žádný přehled není">Založte nový, nebo si aplikaci nejdřív projděte na ukázkovém projektu s hotovou metaanalýzou.</Empty>
       )}
 
-      <p className="small muted" style={{ marginTop: 22 }}>
-        Všechna data zůstávají jen ve vašem prohlížeči na tomto počítači. Průběžně si proto stahujte zálohu projektu – slouží i k přenosu na jiný počítač.
-      </p>
+      <section className="card" style={{ marginTop: 22 }}>
+        <h3>Kde jsou moje data</h3>
+        <ul className="small" style={{ marginBottom: 0 }}>
+          <li>
+            <strong>Vše se ukládá samo</strong> do úložiště tohoto prohlížeče. Po zavření karty, vypnutí počítače i po týdnech najdete přehled tam, kde jste skončili.
+          </li>
+          <li>
+            Data neopouštějí váš počítač. Proto je neuvidíte v jiném prohlížeči ani na jiném počítači a zmizí, pokud v prohlížeči smažete data stránek nebo pracujete v anonymním okně.
+          </li>
+          <li>
+            Pojistkou je <strong>záloha projektu</strong> (tlačítko v levém panelu projektu); slouží i k přenosu na jiný počítač.{' '}
+            {fileSaveSupported() ? 'V tomto prohlížeči lze navíc zapnout průběžné ukládání do souboru – třeba ve složce synchronizované s cloudem.' : 'V prohlížečích Chrome a Edge lze navíc zapnout průběžné ukládání do souboru na disku.'}
+          </li>
+          {storage ? (
+            <li className="muted">
+              {storage.persisted === true ? 'Prohlížeč potvrdil trvalé úložiště: data sám nesmaže ani při nedostatku místa na disku.' : storage.persisted === false ? 'Prohlížeč zatím nepotvrdil trvalé úložiště; při velkém nedostatku místa na disku by mohl data stránek uvolnit. Záloha tomu předejde.' : 'Prohlížeč nesděluje, zda je úložiště trvalé.'}
+              {storage.usage != null && storage.usage > 0 ? ` Využito ${storage.usage > 1048576 ? `${(storage.usage / 1048576).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round(storage.usage / 1024))} kB`}.` : ''}
+            </li>
+          ) : null}
+        </ul>
+      </section>
     </main>
   );
 }

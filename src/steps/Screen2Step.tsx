@@ -1,23 +1,38 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
-import { attachFile, db, patchRecord } from '../lib/db';
+import { attachFile, castVote2, db, patchRecord } from '../lib/db';
 import { fulltextQueue } from '../lib/flow';
-import type { Fulltext, RecordItem } from '../lib/types';
+import { isDouble, reasonMismatch, reviewerName, stage2Stats, state2, vote2Of } from '../lib/reviewers';
+import type { Fulltext, RecordItem, Screen2 } from '../lib/types';
 import { lines } from '../lib/util';
 import type { StepProps } from '../pages/ProjectPage';
 import { Empty, Field, Notice, Seg, Stat, TextArea, TextInput } from '../ui';
 import { RecordHead, RecordLinks } from './common';
+import { ConflictCard, ReviewerBar, useReviewer, type ReviewView } from './reviewerUi';
 
 type Filter = 'pending' | 'include' | 'exclude' | 'notRetrieved' | 'all';
 const FILTER_LABELS: Record<Filter, string> = { pending: 'Čeká', include: 'Zařazeno', exclude: 'Vyřazeno', notRetrieved: 'Nezískáno', all: 'Vše' };
 
-const stateOf = (r: RecordItem): Exclude<Filter, 'all'> => (r.fulltext === 'notRetrieved' ? 'notRetrieved' : r.screen2);
+const DECISION_LABELS: Record<Screen2, string> = { pending: 'čeká', include: 'zařadit', exclude: 'vyřadit' };
 
 export default function Screen2Step({ project, records }: StepProps) {
   const queue = useMemo(() => fulltextQueue(records), [records]);
   const [filter, setFilter] = useState<Filter>('pending');
   const [selected, setSelected] = useState<string | null>(null);
+  const [view, setView] = useState<ReviewView>('screen');
   const files = useLiveQuery(() => db.files.where('projectId').equals(project.id).toArray(), [project.id]) ?? [];
+  // Při dvou hodnotitelích pracuje každý se svým rozhodnutím; výsledné vzniká až shodou.
+  const double = isDouble(project);
+  const { me, setMe, fixed } = useReviewer(project);
+  const mine = (r: RecordItem): { decision: Screen2; reason: string } => (double ? vote2Of(r, me) : { decision: r.screen2, reason: r.excludeReason });
+  const stateOf = (r: RecordItem): Exclude<Filter, 'all'> => (r.fulltext === 'notRetrieved' ? 'notRetrieved' : mine(r).decision);
+  const setDecision = (r: RecordItem, decision: Screen2) => {
+    const next = mine(r).decision === decision ? 'pending' : decision;
+    if (double) return castVote2(project, r.id, me, { decision: next, reason: next === 'exclude' ? mine(r).reason : '' });
+    return patchRecord(r.id, { screen2: next, fulltext: 'retrieved', ...(decision === 'include' ? { excludeReason: '' } : {}) });
+  };
+  const setReason = (r: RecordItem, reason: string) => (double ? castVote2(project, r.id, me, { decision: 'exclude', reason }) : patchRecord(r.id, { excludeReason: reason }));
+  const conflictView = double && !fixed && view === 'conflicts';
 
   const list = queue.filter((r) => filter === 'all' || stateOf(r) === filter);
   const current = list.find((r) => r.id === selected) ?? list[0] ?? null;
@@ -28,6 +43,7 @@ export default function Screen2Step({ project, records }: StepProps) {
   if (queue.length === 0) return <Empty title="Zatím žádné záznamy k posouzení">Sem se dostanou záznamy, které jste při třídění podle abstraktu označili „Zařadit“ nebo „Možná“.</Empty>;
 
   const file = current ? files.find((f) => f.recordId === current.id) : undefined;
+  const my = current ? mine(current) : { decision: 'pending' as Screen2, reason: '' };
   const openFile = () => {
     if (!file) return;
     const url = URL.createObjectURL(file.blob);
@@ -37,7 +53,11 @@ export default function Screen2Step({ project, records }: StepProps) {
 
   return (
     <div className="stack">
-      {pending1 > 0 ? <Notice kind="warn">Třídění podle abstraktu ještě není dokončené – {pending1} záznamů čeká na rozhodnutí.</Notice> : null}
+      {pending1 > 0 ? <Notice kind="warn">Třídění podle abstraktu ještě není dokončené – {pending1} záznamů čeká na rozhodnutí{double ? ' (nebo na vyřešení neshody)' : ''}.</Notice> : null}
+      {double ? <ReviewerBar project={project} stats={stage2Stats(queue, project.team)} me={me} setMe={setMe} fixed={fixed} view={view} setView={setView} stageLabel="posouzení plných textů" /> : null}
+      {conflictView ? <Conflicts2 project={project} queue={queue} reasons={reasons} /> : null}
+      {conflictView ? null : (
+      <>
       <div className="stats">
         <Stat label="K posouzení celkem" value={queue.length} />
         <Stat label="Čeká" value={count('pending')} />
@@ -63,7 +83,13 @@ export default function Screen2Step({ project, records }: StepProps) {
 
       {list.length === 0 ? (
         filter === 'pending' ? (
-          <Notice kind="good">Všechny plné texty jsou posouzeny. Pokračujte extrakcí dat.</Notice>
+          <Notice kind="good">
+            {double
+              ? fixed
+                ? 'Všechny plné texty máte posouzené. Stáhněte svá rozhodnutí tlačítkem nahoře a pošlete je zpět.'
+                : `${reviewerName(project.team, me)} má všechny plné texty posouzené. Až dokončí i druhý hodnotitel, vyřešte neshody.`
+              : 'Všechny plné texty jsou posouzeny. Pokračujte extrakcí dat.'}
+          </Notice>
         ) : (
           <Empty title="Žádný záznam v této skupině" />
         )
@@ -151,30 +177,20 @@ export default function Screen2Step({ project, records }: StepProps) {
                       Rozhodnutí podle plného textu
                     </div>
                     <div className="decide">
-                      <button
-                        type="button"
-                        className={`btn ${current.screen2 === 'include' ? 'on-include' : ''}`}
-                        aria-pressed={current.screen2 === 'include'}
-                        onClick={() => patchRecord(current.id, { screen2: current.screen2 === 'include' ? 'pending' : 'include', fulltext: 'retrieved', excludeReason: '' })}
-                      >
+                      <button type="button" className={`btn ${my.decision === 'include' ? 'on-include' : ''}`} aria-pressed={my.decision === 'include'} onClick={() => setDecision(current, 'include')}>
                         Zařadit do přehledu
                       </button>
-                      <button
-                        type="button"
-                        className={`btn ${current.screen2 === 'exclude' ? 'on-exclude' : ''}`}
-                        aria-pressed={current.screen2 === 'exclude'}
-                        onClick={() => patchRecord(current.id, { screen2: current.screen2 === 'exclude' ? 'pending' : 'exclude', fulltext: 'retrieved' })}
-                      >
+                      <button type="button" className={`btn ${my.decision === 'exclude' ? 'on-exclude' : ''}`} aria-pressed={my.decision === 'exclude'} onClick={() => setDecision(current, 'exclude')}>
                         Vyřadit
                       </button>
                     </div>
                   </div>
                 ) : null}
 
-                {current.screen2 === 'exclude' && current.fulltext !== 'notRetrieved' ? (
+                {my.decision === 'exclude' && current.fulltext !== 'notRetrieved' ? (
                   <div className="grid2">
                     <Field label="Důvod vyřazení" hint="Zvolte první nesplněné kritérium v pořadí z protokolu.">
-                      <select value={reasons.includes(current.excludeReason) ? current.excludeReason : current.excludeReason ? '__other' : ''} onChange={(e) => patchRecord(current.id, { excludeReason: e.target.value === '__other' ? 'Jiný důvod' : e.target.value })}>
+                      <select value={reasons.includes(my.reason) ? my.reason : my.reason ? '__other' : ''} onChange={(e) => setReason(current, e.target.value === '__other' ? 'Jiný důvod' : e.target.value)}>
                         <option value="">– vyberte –</option>
                         {reasons.map((r) => (
                           <option key={r} value={r}>
@@ -184,14 +200,14 @@ export default function Screen2Step({ project, records }: StepProps) {
                         <option value="__other">Jiný důvod…</option>
                       </select>
                     </Field>
-                    {current.excludeReason && !reasons.includes(current.excludeReason) ? (
+                    {my.reason && !reasons.includes(my.reason) ? (
                       <Field label="Jiný důvod" hint="Stejné důvody pište vždy stejně, aby se v diagramu sečetly.">
-                        <TextInput value={current.excludeReason} onCommit={(excludeReason) => patchRecord(current.id, { excludeReason })} />
+                        <TextInput value={my.reason} onCommit={(reason) => setReason(current, reason)} />
                       </Field>
                     ) : null}
                   </div>
                 ) : null}
-                {current.screen2 === 'exclude' && !current.excludeReason ? <Notice kind="warn">U vyřazeného plného textu chybí důvod. PRISMA vyžaduje uvést ho u každého.</Notice> : null}
+                {my.decision === 'exclude' && !my.reason ? <Notice kind="warn">U vyřazeného plného textu chybí důvod. PRISMA vyžaduje uvést ho u každého.</Notice> : null}
 
                 <Field label="Poznámka">
                   <TextArea value={current.notes} rows={2} onCommit={(notes) => patchRecord(current.id, { notes })} />
@@ -201,6 +217,65 @@ export default function Screen2Step({ project, records }: StepProps) {
           ) : null}
         </div>
       )}
+      </>
+      )}
+    </div>
+  );
+}
+
+/** Plné texty, u kterých se hodnotitelé rozešli v rozhodnutí nebo v důvodu vyřazení. */
+function Conflicts2({ project, queue, reasons }: { project: StepProps['project']; queue: RecordItem[]; reasons: string[] }) {
+  const team = project.team;
+  const assessable = queue.filter((r) => r.fulltext !== 'notRetrieved');
+  const conflicts = assessable.filter((r) => state2(r, team.reviewers) === 'conflict').sort((a, b) => Number(a.screen2 !== 'pending') - Number(b.screen2 !== 'pending'));
+  const mismatched = assessable.filter((r) => reasonMismatch(r, team.reviewers));
+  if (conflicts.length === 0 && mismatched.length === 0) {
+    return <Empty title="Žádné neshody">Neshoda vznikne, když jeden hodnotitel plný text zařadí a druhý vyřadí, nebo když ho vyřadí každý z jiného důvodu.</Empty>;
+  }
+  const voteText = (r: RecordItem, id: string) => {
+    const v = vote2Of(r, id);
+    return v.decision === 'exclude' && v.reason ? `vyřadit – ${v.reason}` : DECISION_LABELS[v.decision];
+  };
+  const reasonSelect = (r: RecordItem) => (
+    <select value={r.excludeReason} onChange={(e) => patchRecord(r.id, { excludeReason: e.target.value })} aria-label="Výsledný důvod vyřazení" style={{ width: 'auto', maxWidth: 360 }}>
+      <option value="">– důvod vyřazení –</option>
+      {[...new Set([...reasons, ...team.reviewers.map((x) => vote2Of(r, x.id).reason).filter(Boolean)])].map((x) => (
+        <option key={x} value={x}>
+          {x}
+        </option>
+      ))}
+    </select>
+  );
+  return (
+    <div className="stack">
+      <Notice>Neshody řešte společně nad plným textem a kritérii z protokolu. Výsledný důvod vyřazení se objeví ve vývojovém diagramu.</Notice>
+      {conflicts.map((r) => (
+        <ConflictCard key={r.id} title={r.title} meta={[r.authors[0]?.family, r.year, r.journal].filter(Boolean).join(' · ')} resolved={r.screen2 !== 'pending'} votes={team.reviewers.map((x) => ({ name: reviewerName(team, x.id), text: voteText(r, x.id) }))}>
+          <div className="decide">
+            <span className="small" style={{ fontWeight: 600 }}>Výsledné rozhodnutí:</span>
+            <button type="button" className={`btn small ${r.screen2 === 'include' ? 'on-include' : ''}`} aria-pressed={r.screen2 === 'include'} onClick={() => patchRecord(r.id, { screen2: r.screen2 === 'include' ? 'pending' : 'include', excludeReason: '' })}>
+              Zařadit do přehledu
+            </button>
+            <button
+              type="button"
+              className={`btn small ${r.screen2 === 'exclude' ? 'on-exclude' : ''}`}
+              aria-pressed={r.screen2 === 'exclude'}
+              onClick={() => patchRecord(r.id, r.screen2 === 'exclude' ? { screen2: 'pending', excludeReason: '' } : { screen2: 'exclude', excludeReason: team.reviewers.map((x) => vote2Of(r, x.id).reason).find(Boolean) ?? '' })}
+            >
+              Vyřadit
+            </button>
+            {r.screen2 === 'exclude' ? reasonSelect(r) : null}
+          </div>
+        </ConflictCard>
+      ))}
+      {mismatched.map((r) => (
+        <ConflictCard key={r.id} title={r.title} meta={[r.authors[0]?.family, r.year, r.journal].filter(Boolean).join(' · ')} resolved={false} votes={team.reviewers.map((x) => ({ name: reviewerName(team, x.id), text: voteText(r, x.id) }))}>
+          <div className="decide">
+            <span className="small" style={{ fontWeight: 600 }}>Oba vyřadili, liší se důvod. Výsledný důvod:</span>
+            {reasonSelect(r)}
+          </div>
+        </ConflictCard>
+      ))}
     </div>
   );
 }

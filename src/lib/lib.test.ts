@@ -23,6 +23,8 @@ function rec(over: Partial<RecordItem>): RecordItem {
     fulltext: 'pending',
     screen2: 'pending',
     excludeReason: '',
+    votes1: {},
+    votes2: {},
     extraction: {},
     effects: {},
     quality: {},

@@ -1,9 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { ComponentType } from 'react';
-import { db, deleteProject, exportBackup, patchProject } from '../lib/db';
+import { db, deleteProject, patchProject } from '../lib/db';
 import { REVIEW_TYPES, STEP_LABELS, stepsOf } from '../lib/reviewTypes';
 import type { Project, RecordItem, StepId } from '../lib/types';
-import { download, slug } from '../lib/util';
 import ChecklistStep from '../steps/ChecklistStep';
 import DedupStep from '../steps/DedupStep';
 import ExtractStep from '../steps/ExtractStep';
@@ -17,6 +16,7 @@ import SearchStep from '../steps/SearchStep';
 import SynthesisStep from '../steps/SynthesisStep';
 import WriteStep from '../steps/WriteStep';
 import { Check, Empty, GuidePanel, Notice, href, navigate } from '../ui';
+import SaveBox from './SaveBox';
 
 export interface StepProps {
   project: Project;
@@ -67,7 +67,6 @@ export default function ProjectPage({ id, step }: { id: string; step?: string })
   const conf = REVIEW_TYPES[project.type];
   const isDone = !!project.done[current.id];
 
-  const backup = async () => download(`${slug(project.title)}-zaloha.json`, JSON.stringify(await exportBackup(project.id), null, 1), 'application/json');
   const remove = async () => {
     if (!window.confirm(`Opravdu smazat přehled „${project.title}“ včetně všech záznamů? Tuto akci nelze vrátit.`)) return;
     await deleteProject(project.id);
@@ -96,10 +95,8 @@ export default function ProjectPage({ id, step }: { id: string; step?: string })
             ))}
           </ol>
         </nav>
-        <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--line)', display: 'grid', gap: 6 }}>
-          <button type="button" className="btn small" onClick={backup}>
-            Stáhnout zálohu projektu
-          </button>
+        <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--line)', display: 'grid', gap: 10 }}>
+          <SaveBox project={project} records={records} />
           <button type="button" className="btn small ghost danger" onClick={remove}>
             Smazat přehled
           </button>
@@ -116,9 +113,14 @@ export default function ProjectPage({ id, step }: { id: string; step?: string })
             {isDone ? <span className="pill accent">hotovo</span> : null}
           </div>
           <h1 style={{ marginBottom: 16 }}>{STEP_LABELS[current.id]}</h1>
+          {project.reviewerCopy ? (
+            <div style={{ marginBottom: 16 }}>
+              <Notice>Toto je kopie projektu pro druhého hodnotitele. Slouží jen k nezávislému třídění; svá rozhodnutí pak stáhněte v kroku Třídění nebo Posouzení plných textů a pošlete je zpět.</Notice>
+            </div>
+          ) : null}
           {project.demo ? (
             <div style={{ marginBottom: 16 }}>
-              <Notice>Toto je ukázkový projekt s 13 studiemi vakcíny BCG (Colditz et al., 1994). Vyhledávání a třídění v něm neproběhlo; slouží k vyzkoušení extrakce, metaanalýzy a sestavení textu.</Notice>
+              <Notice>{typeof project.demo === 'string' ? project.demo : 'Toto je ukázkový projekt s 13 studiemi vakcíny BCG (Colditz et al., 1994). Vyhledávání a třídění v něm neproběhlo; slouží k vyzkoušení extrakce, metaanalýzy a sestavení textu.'}</Notice>
             </div>
           ) : null}
           <GuidePanel key={`guide-${current.id}`} step={current.id} type={project.type} done={isDone} />

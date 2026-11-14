@@ -1,4 +1,5 @@
-// Obrázky jako čisté SVG: vývojový diagram, lesní graf, trychtýřový graf a sloupcové grafy.
+// Obrázky jako čisté SVG: vývojový diagram, lesní graf, trychtýřový graf, sloupcové grafy,
+// bublinový graf metaregrese a graf sítě léčeb.
 // Funkce vracejí text SVG, takže stejný obrázek jde zobrazit v aplikaci, stáhnout
 // i vložit do dokumentu Word. Jedna datová řada = jedna barva; text nikdy nenese barvu dat.
 
@@ -201,6 +202,8 @@ export interface ForestSpec {
   measure: string;
   footer: string[];
   mode: FigMode;
+  /** Záhlaví prvního sloupce (výchozí „Studie“). */
+  labelHeader?: string;
 }
 
 const LOG_TICKS = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
@@ -231,7 +234,9 @@ export function forestSvg(spec: ForestSpec): string {
   const labelW = Math.min(280, Math.max(150, Math.max(...rows.map((x) => tw(x.label, x.kind === 'study' ? 12 : 12.5))) + 24));
   const PLOT = 300;
   const NUM = 150;
-  const WGT = 58;
+  // Sloupec vah se kreslí, jen když nějaký řádek váhu má (u srovnání léčeb v síti ne).
+  const hasWeights = rows.some((x) => x.weight != null);
+  const WGT = hasWeights ? 58 : 0;
   const X0 = 12 + labelW;
   const W = X0 + PLOT + 16 + NUM + WGT + 8;
   const plotTop = HEAD + 8;
@@ -259,9 +264,9 @@ export function forestSvg(spec: ForestSpec): string {
 
   let s = open(W, H, t, `Lesní graf: ${spec.measure}`);
   // Záhlaví sloupců.
-  s += text(12, HEAD - 8, 'Studie', t, { size: 12, fill: t.ink2, bold: true });
+  s += text(12, HEAD - 8, spec.labelHeader ?? 'Studie', t, { size: 12, fill: t.ink2, bold: true });
   s += text(X0 + PLOT + 16 + NUM - 8, HEAD - 8, `${spec.measure} [95% CI]`, t, { size: 12, anchor: 'end', fill: t.ink2, bold: true });
-  s += text(W - 10, HEAD - 8, 'Váha', t, { size: 12, anchor: 'end', fill: t.ink2, bold: true });
+  if (hasWeights) s += text(W - 10, HEAD - 8, 'Váha', t, { size: 12, anchor: 'end', fill: t.ink2, bold: true });
   s += `<line x1="12" y1="${HEAD}" x2="${W - 8}" y2="${HEAD}" stroke="${t.grid}"/>`;
 
   // Osa a čára nulového účinku.
@@ -368,6 +373,142 @@ export function funnelSvg(spec: FunnelSpec): string {
   }
   s += text((L + W - R) / 2, H - 12, spec.scale === 'log' ? `${spec.measure} (logaritmická osa)` : spec.measure, t, { size: 12, anchor: 'middle', fill: t.ink2 });
   s += text(16, (T + H - B) / 2, 'Směrodatná chyba', t, { size: 12, anchor: 'middle', fill: t.ink2, rotate: -90 });
+  return s + '</svg>';
+}
+
+// ---- Bublinový graf metaregrese -------------------------------------------------
+
+export interface BubbleSpec {
+  /** Studie: hodnota moderátoru, efekt a váha v modelu (určuje velikost bubliny). */
+  points: { label: string; x: number; yi: number; weight: number }[];
+  /** Regresní přímka s pásem 95% intervalu spolehlivosti. */
+  line: { x: number; y: number; lo: number; hi: number }[];
+  xLabel: string;
+  scale: FigScale;
+  measure: string;
+  mode: FigMode;
+}
+
+export function bubbleSvg(spec: BubbleSpec): string {
+  const t = THEMES[spec.mode];
+  const W = 560;
+  const H = 390;
+  const L = 64;
+  const R = 20;
+  const T = 18;
+  const B = 54;
+  const a = (v: number) => axisValue(spec.scale, v);
+  const xs = spec.points.map((p) => p.x);
+  let xMin = Math.min(...xs);
+  let xMax = Math.max(...xs);
+  const xPad = (xMax - xMin) * 0.06 || 1;
+  xMin -= xPad;
+  xMax += xPad;
+  const ys = [...spec.points.map((p) => a(p.yi)), ...spec.line.flatMap((p) => [a(p.lo), a(p.hi)])];
+  let yMin = Math.min(...ys);
+  let yMax = Math.max(...ys);
+  const yPad = (yMax - yMin) * 0.06 || 0.1;
+  yMin -= yPad;
+  yMax += yPad;
+  const x = (v: number) => L + ((v - xMin) / (xMax - xMin)) * (W - L - R);
+  const y = (v: number) => T + (1 - (a(v) - yMin) / (yMax - yMin)) * (H - T - B);
+
+  let s = open(W, H, t, `Bublinový graf metaregrese: ${spec.measure} podle ${spec.xLabel}`);
+  const yTicks = axisTicks(spec.scale === 'z' ? 'identity' : spec.scale, yMin, yMax);
+  for (const tick of yTicks) {
+    const py = T + (1 - (tick.at - yMin) / (yMax - yMin)) * (H - T - B);
+    s += `<line x1="${L}" y1="${r(py)}" x2="${W - R}" y2="${r(py)}" stroke="${t.grid}"/>`;
+    s += text(L - 8, py + 4, tick.label, t, { size: 11, anchor: 'end', fill: t.muted });
+  }
+  const xTicks = niceTicks(xMin, xMax, 6).filter((v) => v >= xMin && v <= xMax);
+  const xStep = xTicks.length > 1 ? Math.abs(xTicks[1] - xTicks[0]) : 1;
+  s += `<line x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}" stroke="${t.axis}"/>`;
+  for (const v of xTicks) {
+    s += `<line x1="${r(x(v))}" y1="${H - B}" x2="${r(x(v))}" y2="${H - B + 4}" stroke="${t.axis}"/>`;
+    s += text(x(v), H - B + 18, fmt(v, xStep >= 1 ? 0 : xStep >= 0.1 ? 1 : 2), t, { size: 11, anchor: 'middle', fill: t.muted });
+  }
+  // Pás intervalu spolehlivosti a regresní přímka (odhad, ne data → neutrální barva).
+  if (spec.line.length > 1) {
+    const upper = spec.line.map((p) => `${r(x(p.x))},${r(y(p.hi))}`);
+    const lower = [...spec.line].reverse().map((p) => `${r(x(p.x))},${r(y(p.lo))}`);
+    s += `<polygon points="${[...upper, ...lower].join(' ')}" fill="${t.band}"><title>95% interval spolehlivosti regresní přímky</title></polygon>`;
+    s += `<polyline points="${spec.line.map((p) => `${r(x(p.x))},${r(y(p.y))}`).join(' ')}" fill="none" stroke="${t.ink2}" stroke-width="2"/>`;
+  }
+  const maxW = Math.max(...spec.points.map((p) => p.weight), 1e-12);
+  // Větší bubliny dospod, aby nepřekryly menší.
+  for (const p of [...spec.points].sort((p1, p2) => p2.weight - p1.weight)) {
+    const rad = 4 + 11 * Math.sqrt(p.weight / maxW);
+    s += `<g><title>${esc(`${p.label}: ${spec.xLabel} ${fmt(p.x, 2)}, ${spec.measure} ${fmt(shown(spec.scale, p.yi), 2)}`)}</title>`;
+    s += `<circle cx="${r(x(p.x))}" cy="${r(y(p.yi))}" r="${r(rad)}" fill="${t.series}" fill-opacity="0.72" stroke="${t.surface}" stroke-width="1.5"/></g>`;
+  }
+  s += text((L + W - R) / 2, H - 12, spec.xLabel, t, { size: 12, anchor: 'middle', fill: t.ink2 });
+  s += text(16, (T + H - B) / 2, spec.scale === 'log' ? `${spec.measure} (logaritmická osa)` : spec.measure, t, { size: 12, anchor: 'middle', fill: t.ink2, rotate: -90 });
+  return s + '</svg>';
+}
+
+// ---- Graf sítě léčeb --------------------------------------------------------------
+
+export interface NetworkSpec {
+  nodes: { label: string; studies: number }[];
+  edges: { a: string; b: string; studies: number }[];
+  mode: FigMode;
+}
+
+/** Léčby na kružnici; tloušťka spojnice a velikost bodu odpovídají počtu studií. */
+export function networkSvg(spec: NetworkSpec): string {
+  const t = THEMES[spec.mode];
+  const n = spec.nodes.length;
+  const cut = (label: string) => (label.length > 26 ? label.slice(0, 25) + '…' : label);
+  const maxLabel = Math.max(...spec.nodes.map((v) => tw(cut(v.label), 12.5)));
+  const RAD = Math.max(120, Math.min(190, 60 + n * 14));
+  const MX = Math.min(190, maxLabel + 34);
+  const W = 2 * (RAD + MX);
+  const H = 2 * RAD + 110;
+  const cx = W / 2;
+  const cy = RAD + 44;
+  const pos = new Map(
+    spec.nodes.map((v, i) => {
+      const ang = -Math.PI / 2 + (2 * Math.PI * i) / n;
+      return [v.label, { x: cx + RAD * Math.cos(ang), y: cy + RAD * Math.sin(ang), ang }];
+    }),
+  );
+  const maxE = Math.max(1, ...spec.edges.map((e) => e.studies));
+  const maxN = Math.max(1, ...spec.nodes.map((v) => v.studies));
+
+  let s = open(W, H, t, 'Graf sítě léčeb');
+  for (const e of spec.edges) {
+    const p = pos.get(e.a);
+    const q = pos.get(e.b);
+    if (!p || !q) continue;
+    const width = 1.5 + 7 * (e.studies / maxE);
+    s += `<g><title>${esc(`${e.a} – ${e.b}: ${e.studies} ${e.studies === 1 ? 'studie' : e.studies < 5 ? 'studie' : 'studií'}`)}</title>`;
+    s += `<line x1="${r(p.x)}" y1="${r(p.y)}" x2="${r(q.x)}" y2="${r(q.y)}" stroke="${t.axis}" stroke-width="${r(width)}" stroke-linecap="round"/>`;
+    s += `<line x1="${r(p.x)}" y1="${r(p.y)}" x2="${r(q.x)}" y2="${r(q.y)}" stroke="transparent" stroke-width="14"/></g>`;
+  }
+  // Počty studií u spojnic – jen když se do obrázku vejdou.
+  if (spec.edges.length <= 16) {
+    for (const e of spec.edges) {
+      const p = pos.get(e.a);
+      const q = pos.get(e.b);
+      if (!p || !q) continue;
+      // Popisek leží blíž k prvnímu bodu, aby se u křížících se spojnic nepřekrývaly ve středu.
+      const mx = p.x + (q.x - p.x) * 0.38;
+      const my = p.y + (q.y - p.y) * 0.38;
+      s += `<circle cx="${r(mx)}" cy="${r(my)}" r="9" fill="${t.surface}" stroke="${t.axis}"/>`;
+      s += text(mx, my + 4, String(e.studies), t, { size: 11, anchor: 'middle', fill: t.ink2 });
+    }
+  }
+  for (const v of spec.nodes) {
+    const p = pos.get(v.label)!;
+    const rad = 6 + 10 * Math.sqrt(v.studies / maxN);
+    s += `<g><title>${esc(`${v.label}: ${v.studies} ${v.studies === 1 ? 'studie' : v.studies < 5 ? 'studie' : 'studií'}`)}</title>`;
+    s += `<circle cx="${r(p.x)}" cy="${r(p.y)}" r="${r(rad)}" fill="${t.series}" stroke="${t.surface}" stroke-width="2"/></g>`;
+    const cos = Math.cos(p.ang);
+    const sin = Math.sin(p.ang);
+    const anchor = Math.abs(cos) < 0.25 ? 'middle' : cos > 0 ? 'start' : 'end';
+    s += text(p.x + cos * (rad + 8), p.y + sin * (rad + 8) + (Math.abs(cos) < 0.25 ? (sin > 0 ? 12 : -2) : 4), cut(v.label), t, { size: 12.5, anchor });
+  }
+  s += text(cx, H - 14, 'Tloušťka spojnice a číslo u ní udávají počet studií s přímým srovnáním; velikost bodu počet studií s danou léčbou.', t, { size: 10.5, anchor: 'middle', fill: t.muted });
   return s + '</svg>';
 }
 
