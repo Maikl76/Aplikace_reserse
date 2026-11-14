@@ -192,7 +192,7 @@ export interface SubgroupResult {
 }
 
 export function subgroupAnalysis(studies: Study[], opts: MetaOptions): SubgroupResult | null {
-  const names = [...new Set(studies.map((s) => (s.subgroup ?? '').trim() || 'neuvedeno'))];
+  const names = [...new Set(studies.map((s) => (s.subgroup ?? '').trim() || 'neuvedeno'))].sort((a, b) => a.localeCompare(b, 'cs'));
   if (names.length < 2) return null;
   const groups = names.map((name) => {
     const members = studies.filter((s) => ((s.subgroup ?? '').trim() || 'neuvedeno') === name);

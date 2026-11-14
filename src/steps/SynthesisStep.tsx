@@ -10,7 +10,7 @@ import { interpretI2 } from '../lib/stats/meta';
 import type { GradeRating, RecordItem, SynthesisState, Theme } from '../lib/types';
 import { fmt, fmtP, slug, uid } from '../lib/util';
 import type { StepProps } from '../pages/ProjectPage';
-import { Empty, Field, Figure, Notice, Seg, Stat, TextArea, TextInput, href } from '../ui';
+import { Check, Empty, Field, Figure, Notice, Seg, Stat, TextArea, TextInput, href } from '../ui';
 
 const Z = 1.959963984540054;
 
@@ -116,10 +116,11 @@ function MetaSection({ project, included }: SectionProps) {
             </div>
           ) : null}
           {syn.model === 'random' ? (
-            <label className="check" style={{ marginTop: 22 }}>
-              <input type="checkbox" checked={syn.knha} onChange={(e) => set({ knha: e.target.checked })} />
-              <span>Knappova–Hartungova úprava</span>
-            </label>
+            <div style={{ marginTop: 22 }}>
+              <Check checked={syn.knha} onChange={(knha) => set({ knha })}>
+                Knappova–Hartungova úprava
+              </Check>
+            </div>
           ) : null}
           <div style={{ minWidth: 220 }}>
             <div className="small" style={{ fontWeight: 600, marginBottom: 4 }}>Podskupiny podle</div>
@@ -323,10 +324,9 @@ function ChartingSection({ project, included }: SectionProps) {
         <p className="small muted">Vyberte hlediska, podle kterých chcete zařazené studie spočítat. Nejlépe fungují pole typu kategorie s jednotně zapsanými hodnotami.</p>
         <div className="row">
           {project.fields.map((f) => (
-            <label key={f.id} className="check">
-              <input type="checkbox" checked={chosen.includes(f.id)} onChange={() => toggle(f.id)} />
-              <span>{f.label}</span>
-            </label>
+            <Check key={f.id} checked={chosen.includes(f.id)} onChange={() => toggle(f.id)}>
+              {f.label}
+            </Check>
           ))}
         </div>
       </section>

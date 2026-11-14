@@ -22,6 +22,7 @@
   --critical: #d03b3b;
   --critical-soft: #fbe6e4;
   --mark-in: #c9ecc4;
+  --fig-surface: #fcfcfb;
   --mark-out: #f9cfc9;
   --shadow: 0 1px 2px rgba(20, 20, 15, 0.05), 0 4px 14px rgba(20, 20, 15, 0.04);
   --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
@@ -47,6 +48,7 @@
     --warn-soft: #3d3114;
     --critical-soft: #3f1c1b;
     --mark-in: #1f4d23;
+    --fig-surface: #1a1a19;
     --mark-out: #5a2622;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   }
@@ -223,6 +225,24 @@ code,
 
 .main-inner.wide {
   max-width: 1280px;
+}
+
+@media (max-width: 720px) {
+  .topbar {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    padding: 8px 12px;
+    position: static;
+  }
+  .topbar nav {
+    margin-left: 0;
+    width: 100%;
+    overflow-x: auto;
+  }
+  .topbar nav a {
+    white-space: nowrap;
+    padding: 6px 8px;
+  }
 }
 
 @media (max-width: 900px) {
@@ -983,9 +1003,11 @@ kbd {
   background: var(--surface);
 }
 
+/* Plocha pod obrázkem má stejnou barvu jako pozadí samotného SVG. */
 .figure .canvas {
   overflow-x: auto;
   padding: 10px;
+  background: var(--fig-surface);
 }
 
 .figure svg {

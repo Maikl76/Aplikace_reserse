@@ -45,7 +45,8 @@ const r = (x: number) => Math.round(x * 10) / 10;
 export function wrapText(s: string, maxChars: number): string[] {
   const out: string[] = [];
   let line = '';
-  for (const word of s.split(/\s+/)) {
+  // Dělíme jen v běžných mezerách; pevná mezera drží „(n = 13)“ pohromadě.
+  for (const word of s.split(/[ \t\n]+/)) {
     if (line && (line + ' ' + word).length > maxChars) {
       out.push(line);
       line = word;
@@ -91,13 +92,13 @@ export function prismaSvg(c: FlowCounts, opts: { mode: FigMode; unit: FlowUnit }
   const GAP = 52;
   const RX = X0 + LW + GAP;
   const W = RX + RW + 14;
-  const chars = (w: number) => Math.floor((w - 2 * PAD) / (SIZE * 0.56));
+  const chars = (w: number) => Math.floor((w - 2 * PAD) / (SIZE * 0.54));
 
   const box = (title: string, details: string[], width: number): BoxLine[] => [
     ...wrapText(title, chars(width)).map((s) => ({ text: s, bold: true })),
     ...details.flatMap((d) => wrapText(d, chars(width) - 2).map((s) => ({ text: s, indent: true }))),
   ];
-  const n = (x: number) => `(n = ${x})`;
+  const n = (x: number) => `(n\u00a0=\u00a0${x})`;
   const included = { studie: 'Studie zařazené do přehledu', přehledy: 'Přehledy zařazené do zastřešujícího přehledu', zdroje: 'Zdroje zařazené do přehledu' }[opts.unit];
 
   type Row = { phase: string; left: BoxLine[]; right?: BoxLine[] };

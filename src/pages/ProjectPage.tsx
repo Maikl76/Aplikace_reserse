@@ -16,7 +16,7 @@ import Screen2Step from '../steps/Screen2Step';
 import SearchStep from '../steps/SearchStep';
 import SynthesisStep from '../steps/SynthesisStep';
 import WriteStep from '../steps/WriteStep';
-import { Empty, GuidePanel, Notice, href, navigate } from '../ui';
+import { Check, Empty, GuidePanel, Notice, href, navigate } from '../ui';
 
 export interface StepProps {
   project: Project;
@@ -121,14 +121,13 @@ export default function ProjectPage({ id, step }: { id: string; step?: string })
               <Notice>Toto je ukázkový projekt s 13 studiemi vakcíny BCG (Colditz et al., 1994). Vyhledávání a třídění v něm neproběhlo; slouží k vyzkoušení extrakce, metaanalýzy a sestavení textu.</Notice>
             </div>
           ) : null}
-          <GuidePanel key={current.id} step={current.id} type={project.type} done={isDone} />
-          <Step key={current.id} project={project} records={records} />
+          <GuidePanel key={`guide-${current.id}`} step={current.id} type={project.type} done={isDone} />
+          <Step key={`step-${current.id}`} project={project} records={records} />
 
           <div className="step-footer">
-            <label className="check">
-              <input type="checkbox" checked={isDone} onChange={(e) => patchProject(project.id, { done: { ...project.done, [current.id]: e.target.checked } })} />
-              <span>Krok mám hotový</span>
-            </label>
+            <Check checked={isDone} onChange={(v) => patchProject(project.id, { done: { ...project.done, [current.id]: v } })}>
+              Krok mám hotový
+            </Check>
             <span className="grow" />
             {prev ? (
               <a className="btn" href={href('p', project.id, prev.id)}>

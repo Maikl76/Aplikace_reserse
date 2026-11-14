@@ -40,7 +40,7 @@ function Blocks({ project }: StepProps) {
     const fw = FRAMEWORKS[project.question.framework];
     // Výstupy a vymezení se do dotazu obvykle nedávají – snižují citlivost hledání.
     const skip = new Set(['O', 'scope']);
-    const made = fw.elements.filter((e) => !skip.has(e.id) && (project.question.elements[e.id] ?? '').trim()).map((e) => ({ id: uid(), label: `${e.label}: ${project.question.elements[e.id].trim()}`, terms: [] }));
+    const made = fw.elements.filter((e) => !skip.has(e.id) && (project.question.elements[e.id] ?? '').trim()).map((e) => ({ id: uid(), label: e.label, terms: [] }));
     save([...blocks, ...made]);
   };
 
@@ -71,7 +71,7 @@ function Blocks({ project }: StepProps) {
               <div className="row" style={{ marginBottom: 10 }}>
                 <span className="pill accent">Blok {i + 1}</span>
                 <span className="grow">
-                  <TextInput value={b.label} placeholder="Název pojmu, např. Populace: dospívající" ariaLabel={`Název bloku ${i + 1}`} onCommit={(label) => save(blocks.map((x) => (x.id === b.id ? { ...x, label } : x)))} />
+                  <TextInput value={b.label} placeholder="Název pojmu, např. Populace" ariaLabel={`Název bloku ${i + 1}`} onCommit={(label) => save(blocks.map((x) => (x.id === b.id ? { ...x, label } : x)))} />
                 </span>
                 <button type="button" className="btn small ghost danger" onClick={() => save(blocks.filter((x) => x.id !== b.id))}>
                   Odebrat

@@ -37,7 +37,8 @@ describe('ukázkový projekt', () => {
     expect(a.skipped).toHaveLength(0);
     expect(a.result!.estimate).toBeCloseTo(-0.7145, 4);
     expect(a.result!.tau2).toBeCloseTo(0.3132, 4);
-    expect(a.subgroups!.groups.map((g) => g.name).sort()).toEqual(['náhodné', 'střídavé', 'systematické']);
+    expect(a.subgroups!.groups.map((g) => g.name)).toEqual(['náhodné', 'střídavé', 'systematické']);
+    expect(a.studies[0].label).toBe('Aronson (1948)');
     const rows = forestRows(a);
     expect(rows.filter((r) => r.kind === 'study')).toHaveLength(13);
     expect(rows.filter((r) => r.kind === 'group')).toHaveLength(3);
@@ -58,7 +59,7 @@ describe('obrázky', () => {
     const svg = prismaSvg(counts, { mode: 'light', unit: 'studie' });
     const doc = new DOMParser().parseFromString(svg, 'image/svg+xml');
     expect(doc.getElementsByTagName('parsererror')).toHaveLength(0);
-    expect(svg).toContain('(n = 13)');
+    expect(svg).toContain('(n\u00a0=\u00a013)');
     expect(svg).toContain('Identifikace');
     expect(svg).toContain('Studie zařazené do přehledu');
     // Jednostupňový výběr má méně polí.

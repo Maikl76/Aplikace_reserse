@@ -1,10 +1,8 @@
-import { Packer } from 'docx';
 import { useMemo, useState } from 'react';
 import { STYLE_LABELS } from '../lib/citations';
 import { mergeProject, setSectionText } from '../lib/db';
 import { svgToPng } from '../lib/figures';
 import { TEMPLATE_LABELS, buildManuscript, countTodos, isEdited, toBlocks, type Block, type Section } from '../lib/manuscript/build';
-import { buildDocx, toMarkdown } from '../lib/manuscript/export';
 import type { CitationStyle, ManuscriptState, Template } from '../lib/types';
 import { download, plural, slug } from '../lib/util';
 import type { StepProps } from '../pages/ProjectPage';
@@ -28,6 +26,8 @@ export default function WriteStep({ project, records }: StepProps) {
     try {
       // Do dokumentu jdou obrázky vždy ve světlém provedení.
       const light = buildManuscript(project, records, 'light');
+      // Knihovna pro Word je velká, proto se načítá až při prvním exportu.
+      const [{ Packer }, { buildDocx }] = await Promise.all([import('docx'), import('../lib/manuscript/export')]);
       const doc = await buildDocx(project, light, async (svg) => new Uint8Array(await (await svgToPng(svg, 3)).arrayBuffer()));
       download(`${slug(project.title)}.docx`, await Packer.toBlob(doc));
     } catch (e) {
@@ -84,7 +84,7 @@ export default function WriteStep({ project, records }: StepProps) {
             <button type="button" className="btn primary" disabled={busy} onClick={exportDocx}>
               {busy ? 'Připravuji…' : 'Stáhnout Word (DOCX)'}
             </button>
-            <button type="button" className="btn" onClick={() => download(`${slug(project.title)}.md`, toMarkdown(project, ms), 'text/markdown;charset=utf-8')}>
+            <button type="button" className="btn" onClick={async () => download(`${slug(project.title)}.md`, (await import('../lib/manuscript/export')).toMarkdown(project, ms), 'text/markdown;charset=utf-8')}>
               Stáhnout Markdown
             </button>
           </div>

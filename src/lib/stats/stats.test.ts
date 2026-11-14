@@ -163,8 +163,8 @@ describe('metaanalýza – data BCG', () => {
     expect(loo).toHaveLength(13);
     expect(loo.every((l) => l.result.k === 12)).toBe(true);
     const sub = subgroupAnalysis(studies, opts)!;
-    expect(sub.groups.map((g) => g.name)).toEqual(['random', 'alternate', 'systematic']);
-    expect(sub.groups.map((g) => g.result.k)).toEqual([7, 2, 4]);
+    expect(sub.groups.map((g) => g.name)).toEqual(['alternate', 'random', 'systematic']);
+    expect(sub.groups.map((g) => g.result.k)).toEqual([2, 7, 4]);
     expect(sub.df).toBe(2);
     expect(sub.p).toBeGreaterThan(0);
     expect(sub.p).toBeLessThan(1);

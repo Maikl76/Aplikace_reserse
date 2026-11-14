@@ -49,7 +49,9 @@ export function analyzeOutcome(project: Project, included: RecordItem[], outcome
   const skipped: OutcomeAnalysis['skipped'] = [];
   const notes: OutcomeAnalysis['notes'] = [];
   const field = project.synthesis.subgroupField;
-  for (const r of included) {
+  // Studie řadíme abecedně podle označení, aby pořadí v grafech a tabulkách bylo stálé.
+  const sorted = [...included].sort((x, y) => (labels.get(x.id) ?? '').localeCompare(labels.get(y.id) ?? '', 'cs'));
+  for (const r of sorted) {
     const label = labels.get(r.id) ?? r.title;
     const res = computeEffect(outcome.measure, r.effects[outcome.id]);
     if (res.ok) {

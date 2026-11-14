@@ -196,6 +196,8 @@ function FormEditor({ project, withMeta }: { project: StepProps['project']; with
   const saveFields = (next: FieldDef[]) => patchProject(project.id, { fields: next });
   const outcomes = project.outcomes;
   const saveOutcomes = (next: OutcomeDef[]) => patchProject(project.id, { outcomes: next });
+  // Formulář je zpočátku rozbalený, dokud chybí pole nebo výstupy; dál si stav řídí uživatel.
+  const [open, setOpen] = useState(fields.length === 0 || (withMeta && outcomes.length === 0));
   const move = (i: number, d: number) => {
     const next = [...fields];
     const [x] = next.splice(i, 1);
@@ -205,7 +207,7 @@ function FormEditor({ project, withMeta }: { project: StepProps['project']; with
 
   return (
     <section className="card">
-      <details open={fields.length === 0 || (withMeta && outcomes.length === 0)}>
+      <details open={open} onToggle={(e) => setOpen(e.currentTarget.open)}>
         <summary>Formulář pro extrakci ({fields.length} polí{withMeta ? `, výstupů pro metaanalýzu: ${outcomes.length}` : ''})</summary>
         <p className="small muted" style={{ marginTop: 8 }}>
           Formulář upravte dřív, než začnete vyplňovat. Typ „kategorie“ použijte pro krátké hodnoty, které se budou sčítat nebo sloužit jako podskupiny (design, země). Více hodnot v jedné buňce oddělte středníkem.

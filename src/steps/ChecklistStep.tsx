@@ -3,7 +3,7 @@ import { patchProject } from '../lib/db';
 import { STEP_LABELS, hasStep } from '../lib/reviewTypes';
 import type { ChecklistAnswer } from '../lib/types';
 import type { StepProps } from '../pages/ProjectPage';
-import { TextInput, href } from '../ui';
+import { Check, TextInput, href } from '../ui';
 
 export default function ChecklistStep({ project }: StepProps) {
   const list = CHECKLISTS[project.type];
@@ -45,9 +45,8 @@ export default function ChecklistStep({ project }: StepProps) {
                 const a = answers[item.id];
                 return (
                   <div key={item.id} className="row top">
-                    <label className="check grow" style={{ alignItems: 'flex-start', flexBasis: 360 }}>
-                      <input type="checkbox" checked={!!a?.done} onChange={(e) => set(item.id, { done: e.target.checked })} style={{ marginTop: 3 }} />
-                      <span>
+                    <div className="grow" style={{ flexBasis: 360 }}>
+                      <Check alignTop checked={!!a?.done} onChange={(done) => set(item.id, { done })}>
                         <strong>{item.no}</strong> · {item.text}
                         {item.optional ? <span className="pill" style={{ marginLeft: 6 }}>pokud se týká</span> : null}
                         {item.step && hasStep(project.type, item.step) ? (
@@ -59,8 +58,8 @@ export default function ChecklistStep({ project }: StepProps) {
                             </a>
                           </span>
                         ) : null}
-                      </span>
-                    </label>
+                      </Check>
+                    </div>
                     <span style={{ width: 220 }}>
                       <TextInput value={a?.where ?? ''} placeholder="Kde v textu (kapitola, strana)" ariaLabel={`Kde v textu je položka ${item.no}`} onCommit={(where) => set(item.id, { where })} />
                     </span>

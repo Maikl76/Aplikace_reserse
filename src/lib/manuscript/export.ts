@@ -6,6 +6,7 @@ import {
   Footer,
   HeadingLevel,
   ImageRun,
+  LineRuleType,
   PageBreak,
   PageNumber,
   Paragraph,
@@ -38,7 +39,7 @@ const runs = (text: string, base: { size?: number; bold?: boolean; italics?: boo
 function cell(text: string, bold = false): TableCell {
   return new TableCell({
     margins: { top: 40, bottom: 40, left: 80, right: 80 },
-    children: [new Paragraph({ spacing: { line: 240, after: 0 }, children: [new TextRun({ text, bold, size: 18 })] })],
+    children: [new Paragraph({ spacing: { line: 240, lineRule: LineRuleType.AUTO, after: 0 }, children: [new TextRun({ text, bold, size: 18 })] })],
   });
 }
 
@@ -54,13 +55,13 @@ async function blockToDocx(b: Block, thesis: boolean, rasterize: (svg: string) =
       return [
         new Paragraph({
           indent: { left: 567, hanging: 567 },
-          spacing: { line: 276, after: 120 },
+          spacing: { line: 276, lineRule: LineRuleType.AUTO, after: 120 },
           children: b.spans.map((s) => new TextRun({ text: s.text, italics: s.italic })),
         }),
       ];
     case 'table':
       return [
-        new Paragraph({ keepNext: true, spacing: { before: 240, after: 80, line: 276 }, children: [new TextRun({ text: b.caption, bold: true, size: 20 })] }),
+        new Paragraph({ keepNext: true, spacing: { before: 240, after: 80, line: 276, lineRule: LineRuleType.AUTO }, children: [new TextRun({ text: b.caption, bold: true, size: 20 })] }),
         new Table({
           width: { size: 100, type: WidthType.PERCENTAGE },
           rows: [new TableRow({ tableHeader: true, children: b.head.map((h) => cell(h, true)) }), ...b.rows.map((row) => new TableRow({ children: row.map((c) => cell(c)) }))],
@@ -74,10 +75,11 @@ async function blockToDocx(b: Block, thesis: boolean, rasterize: (svg: string) =
         new Paragraph({
           alignment: AlignmentType.CENTER,
           keepNext: true,
-          spacing: { before: 240, after: 80 },
+          // Jednoduché řádkování s výslovným pravidlem – jinak některé editory obrázek oříznou na výšku řádku.
+          spacing: { before: 240, after: 80, line: 240, lineRule: LineRuleType.AUTO },
           children: [new ImageRun({ type: 'png', data: await rasterize(b.svg), transformation: { width: Math.round(width * scale), height: Math.round(height * scale) }, altText: { name: b.caption, description: b.caption, title: b.caption } })],
         }),
-        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 240, line: 276 }, children: [new TextRun({ text: b.caption, italics: true, size: 20 })] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 240, line: 276, lineRule: LineRuleType.AUTO }, children: [new TextRun({ text: b.caption, italics: true, size: 20 })] }),
       ];
     }
   }
@@ -86,7 +88,7 @@ async function blockToDocx(b: Block, thesis: boolean, rasterize: (svg: string) =
 function titlePage(project: Project): FileChild[] {
   const m = project.manuscript;
   const line = (text: string, o: { size?: number; bold?: boolean; before?: number; caps?: boolean } = {}) =>
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: o.before ?? 0, after: 200, line: 300 }, children: runs(text, { size: o.size ?? 24, bold: o.bold }).map((r) => r) });
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: o.before ?? 0, after: 200, line: 300, lineRule: LineRuleType.AUTO }, children: runs(text, { size: o.size ?? 24, bold: o.bold }).map((r) => r) });
   return [
     line(m.institution.trim() || `${TODO}: název školy a fakulty]`, { size: 28, bold: true }),
     line(TEMPLATE_LABELS[m.template], { size: 28, before: 3200 }),
@@ -115,7 +117,7 @@ export async function buildDocx(project: Project, ms: Manuscript, rasterize: (sv
   }
   for (const b of toBlocks(ms, project)) children.push(...(await blockToDocx(b, thesis, rasterize)));
 
-  const heading = (size: number) => ({ run: { font: FONT, size, bold: true, color: '000000' }, paragraph: { spacing: { before: 360, after: 160, line: 300 } } });
+  const heading = (size: number) => ({ run: { font: FONT, size, bold: true, color: '000000' }, paragraph: { spacing: { before: 360, after: 160, line: 300, lineRule: LineRuleType.AUTO } } });
   return new Document({
     creator: project.manuscript.author.trim() || APP_NAME,
     title: project.title,
@@ -123,7 +125,7 @@ export async function buildDocx(project: Project, ms: Manuscript, rasterize: (sv
     features: { updateFields: thesis },
     styles: {
       default: {
-        document: { run: { font: FONT, size: 24 }, paragraph: { spacing: { line: thesis ? 360 : 300, after: 160 } } },
+        document: { run: { font: FONT, size: 24 }, paragraph: { spacing: { line: thesis ? 360 : 300, lineRule: LineRuleType.AUTO, after: 160 } } },
         title: { run: { font: FONT, size: 36, bold: true, color: '000000' }, paragraph: { spacing: { after: 240 } } },
         heading1: heading(32),
         heading2: heading(26),

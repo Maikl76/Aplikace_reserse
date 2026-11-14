@@ -131,6 +131,26 @@ export function Seg<T extends string>({ value, options, onChange, ariaLabel }: {
   );
 }
 
+/** Zaškrtávací pole, které se přepne hned a do úložiště zapíše na pozadí. */
+export function Check({ checked, onChange, children, alignTop }: { checked: boolean; onChange: (v: boolean) => void; children: ReactNode; alignTop?: boolean }) {
+  const [local, setLocal] = useState(checked);
+  useEffect(() => setLocal(checked), [checked]);
+  return (
+    <label className="check" style={alignTop ? { alignItems: 'flex-start' } : undefined}>
+      <input
+        type="checkbox"
+        checked={local}
+        style={alignTop ? { marginTop: 3 } : undefined}
+        onChange={(e) => {
+          setLocal(e.target.checked);
+          onChange(e.target.checked);
+        }}
+      />
+      <span>{children}</span>
+    </label>
+  );
+}
+
 export function Notice({ kind, children }: { kind?: 'warn' | 'bad' | 'good'; children: ReactNode }) {
   return <div className={`notice ${kind ?? ''}`}>{children}</div>;
 }
