@@ -2,9 +2,10 @@
 // přenos mezi počítači a zálohování řeší export a import souboru JSON.
 
 import Dexie, { type Table } from 'dexie';
+import { newDesign, normalizeDesign } from './design/logic';
 import { DEFAULT_EXCLUDE_REASONS, REVIEW_TYPES, defaultFields } from './reviewTypes';
 import { consensus1, consensus2, defaultTeam, shareKey } from './reviewers';
-import type { BibRecord, EffectInput, Project, ProjectBackup, RecordItem, ReviewType, Screen1, SearchRun, StoredFile, Vote2, VotesFile } from './types';
+import type { BibRecord, DesignState, EffectInput, Project, ProjectBackup, RecordItem, Requirement, ReviewType, Screen1, SearchRun, StoredFile, Vote2, VotesFile } from './types';
 import { nowIso, uid } from './util';
 
 class AppDB extends Dexie {
@@ -36,6 +37,10 @@ class AppDB extends Dexie {
         await tx.table('projects').toCollection().modify((p) => Object.assign(p, normalizeProject(p)));
         await tx.table('records').toCollection().modify((r) => Object.assign(r, normalizeRecord(r)));
       });
+    // Verze 3: projekt má části (rešerše, návrh aplikace); dosavadní projekty jsou rešerše.
+    this.version(3).upgrade(async (tx) => {
+      await tx.table('projects').toCollection().modify((p) => Object.assign(p, normalizeProject(p)));
+    });
   }
 }
 
@@ -54,6 +59,8 @@ export function normalizeProject(p: Project): Project {
     synthesis: { ...base.synthesis, ...p.synthesis },
     manuscript: { ...base.manuscript, ...p.manuscript },
     team: p.team?.reviewers?.length === 2 ? p.team : base.team,
+    parts: p.parts ?? base.parts,
+    ...(p.design || p.parts?.design ? { design: normalizeDesign(p.design) } : {}),
   };
 }
 
@@ -106,6 +113,7 @@ export function newProject(type: ReviewType, title: string): Project {
     checklist: {},
     done: {},
     team: defaultTeam(),
+    parts: { review: true, design: false },
   };
 }
 
@@ -113,6 +121,90 @@ export async function createProject(type: ReviewType, title: string): Promise<Pr
   const project = newProject(type, title);
   await db.projects.add(project);
   return project;
+}
+
+/** Projekt, který obsahuje jen návrh aplikace (bez rešerše). */
+export function newDesignProject(title: string): Project {
+  return { ...newProject('narrative', title.trim() || 'Návrh aplikace'), parts: { review: false, design: true }, design: newDesign() };
+}
+
+export async function createDesignProject(title: string): Promise<Project> {
+  const project = newDesignProject(title);
+  await db.projects.add(project);
+  return project;
+}
+
+/** Části projektu; u starších dat bez tohoto údaje jde o rešerši. */
+export const partsOf = (p: Pick<Project, 'parts'>) => p.parts ?? { review: true, design: false };
+
+type DesignObjectKey = 'intent' | 'solution' | 'deploy' | 'rules' | 'profile' | 'school';
+
+/** Sloučí změny do jedné části návrhu aplikace; čte se čerstvý stav, takže se souběžné úpravy nepřepíšou. */
+export async function mergeDesign<K extends DesignObjectKey>(id: string, key: K, partial: Partial<DesignState[K]>): Promise<void> {
+  await db.projects
+    .where('id')
+    .equals(id)
+    .modify((p) => {
+      const design = normalizeDesign(p.design);
+      p.design = { ...design, [key]: { ...design[key], ...partial } };
+      p.updatedAt = nowIso();
+    });
+}
+
+/** Změní jednoduché položky návrhu (autor, instituce). */
+export async function patchDesign(id: string, partial: Partial<Pick<DesignState, 'author' | 'institution'>>): Promise<void> {
+  await db.projects
+    .where('id')
+    .equals(id)
+    .modify((p) => {
+      p.design = { ...normalizeDesign(p.design), ...partial };
+      p.updatedAt = nowIso();
+    });
+}
+
+export async function addRequirement(id: string): Promise<void> {
+  await db.projects
+    .where('id')
+    .equals(id)
+    .modify((p) => {
+      const design = normalizeDesign(p.design);
+      p.design = { ...design, requirements: [...design.requirements, { id: uid(), text: '', priority: 'must', source: '', sourceNote: '' }] };
+      p.updatedAt = nowIso();
+    });
+}
+
+export async function patchRequirement(id: string, reqId: string, partial: Partial<Requirement>): Promise<void> {
+  await db.projects
+    .where('id')
+    .equals(id)
+    .modify((p) => {
+      const design = normalizeDesign(p.design);
+      p.design = { ...design, requirements: design.requirements.map((r) => (r.id === reqId ? { ...r, ...partial } : r)) };
+      p.updatedAt = nowIso();
+    });
+}
+
+export async function removeRequirement(id: string, reqId: string): Promise<void> {
+  await db.projects
+    .where('id')
+    .equals(id)
+    .modify((p) => {
+      const design = normalizeDesign(p.design);
+      p.design = { ...design, requirements: design.requirements.filter((r) => r.id !== reqId) };
+      p.updatedAt = nowIso();
+    });
+}
+
+/** Zapíše stav jedné etapy plánu (hotovo, poznámka). */
+export async function setStage(id: string, stageId: string, partial: Partial<{ done: boolean; note: string }>): Promise<void> {
+  await db.projects
+    .where('id')
+    .equals(id)
+    .modify((p) => {
+      const design = normalizeDesign(p.design);
+      p.design = { ...design, plan: { ...design.plan, [stageId]: { ...(design.plan[stageId] ?? { done: false, note: '' }), ...partial } } };
+      p.updatedAt = nowIso();
+    });
 }
 
 /** Uloží změny projektu. Vnořené objekty se předávají celé. */
@@ -431,7 +523,7 @@ export async function exportBackup(projectId: string): Promise<ProjectBackup> {
   const project = await db.projects.get(projectId);
   if (!project) throw new Error('Projekt nenalezen.');
   const records = await db.records.where('projectId').equals(projectId).toArray();
-  return { format: 'pruvodce-prehledy', version: 2, exportedAt: nowIso(), project, records };
+  return { format: 'pruvodce-prehledy', version: 3, exportedAt: nowIso(), project, records };
 }
 
 /**

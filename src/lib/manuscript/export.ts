@@ -43,7 +43,7 @@ function cell(text: string, bold = false): TableCell {
   });
 }
 
-async function blockToDocx(b: Block, thesis: boolean, rasterize: (svg: string) => Promise<Uint8Array>): Promise<FileChild[]> {
+export async function blockToDocx(b: Block, thesis: boolean, rasterize: (svg: string) => Promise<Uint8Array>): Promise<FileChild[]> {
   switch (b.t) {
     case 'h':
       return [new Paragraph({ text: b.text, heading: b.level === 1 ? HeadingLevel.HEADING_1 : HeadingLevel.HEADING_2, pageBreakBefore: thesis && b.level === 1 })];
@@ -148,10 +148,15 @@ const mdCell = (s: string) => s.replace(/\|/g, '\\|').replace(/\s*\n\s*/g, ' ');
 
 export function toMarkdown(project: Project, ms: Manuscript): string {
   const m = project.manuscript;
-  const out: string[] = [`# ${project.title}`, ''];
   const meta = [m.author.trim(), m.institution.trim(), m.template !== 'article' && m.supervisor.trim() ? `Vedoucí práce: ${m.supervisor.trim()}` : '', m.year.trim()].filter(Boolean);
+  return blocksToMarkdown(project.title, meta, toBlocks(ms, project));
+}
+
+/** Převede bloky dokumentu na Markdown; `meta` je řádek pod nadpisem (autor, instituce…). */
+export function blocksToMarkdown(title: string, meta: string[], blocks: Block[]): string {
+  const out: string[] = [`# ${title}`, ''];
   if (meta.length) out.push(meta.join(' · '), '');
-  for (const b of toBlocks(ms, project)) {
+  for (const b of blocks) {
     switch (b.t) {
       case 'h':
         out.push(`${'#'.repeat(b.level + 1)} ${b.text}`, '');
@@ -174,4 +179,35 @@ export function toMarkdown(project: Project, ms: Manuscript): string {
     }
   }
   return out.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+}
+
+// ---- Obecný dokument z bloků (návrh aplikace) ------------------------------------------------
+
+/** Dokument Word z hotových bloků: nadpis, podtitul, řádek s autorem a obsah. */
+export async function buildBlocksDocx(opts: { title: string; subtitle: string; meta: string[]; description: string }, blocks: Block[]): Promise<Document> {
+  const children: FileChild[] = [new Paragraph({ text: opts.title, heading: HeadingLevel.TITLE, alignment: AlignmentType.CENTER })];
+  children.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: opts.subtitle, italics: true })] }));
+  if (opts.meta.length) children.push(new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: opts.meta.join(' · ') })] }));
+  for (const b of blocks) children.push(...(await blockToDocx(b, false, async () => new Uint8Array())));
+  const heading = (size: number) => ({ run: { font: FONT, size, bold: true, color: '000000' }, paragraph: { spacing: { before: 360, after: 160, line: 300, lineRule: LineRuleType.AUTO } } });
+  return new Document({
+    creator: opts.meta[0] || APP_NAME,
+    title: opts.title,
+    description: opts.description,
+    styles: {
+      default: {
+        document: { run: { font: FONT, size: 24 }, paragraph: { spacing: { line: 300, lineRule: LineRuleType.AUTO, after: 160 } } },
+        title: { run: { font: FONT, size: 36, bold: true, color: '000000' }, paragraph: { spacing: { after: 240 } } },
+        heading1: heading(32),
+        heading2: heading(26),
+      },
+    },
+    sections: [
+      {
+        properties: { page: { margin: { top: Math.round(2.5 * CM), bottom: Math.round(2.5 * CM), left: Math.round(2.5 * CM), right: Math.round(2.5 * CM) } } },
+        footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ children: [PageNumber.CURRENT], size: 20 })] })] }) },
+        children,
+      },
+    ],
+  });
 }

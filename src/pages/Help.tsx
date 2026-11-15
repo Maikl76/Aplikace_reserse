@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { CHECKLISTS } from '../lib/checklists';
 import { GLOSSARY } from '../lib/content/glossary';
+import { CATALOG_VERIFIED } from '../lib/design/catalog';
 import { APP_VERSION } from '../lib/manuscript/build';
 import { QUALITY_TOOLS } from '../lib/quality';
 import { FRAMEWORKS, REVIEW_TYPES, STEP_LABELS, TYPE_ORDER } from '../lib/reviewTypes';
-import { stripDiacritics } from '../lib/util';
+import { formatDate, stripDiacritics } from '../lib/util';
 import { href } from '../ui';
 
 const TABS = [
@@ -173,6 +174,32 @@ function About() {
           udělá aplikace a co musíte udělat sami.
         </p>
         <p>Aplikace nenahrazuje úsudek autora, vedoucího práce ani knihovníka. Nerozhoduje, které studie zařadit, a nepíše za vás diskusi.</p>
+        <p>Obsahuje dva průvodce, které lze použít každý zvlášť: přehled literatury a návrh aplikace.</p>
+      </section>
+      <section className="card">
+        <h2>Návrh aplikace</h2>
+        <p>
+          Druhý průvodce vede od záměru přes požadavky a vlastnosti aplikace k volbě typu řešení a místa, kde aplikace poběží. Smyslem je rozhodnout o provozu <strong>před stavbou</strong>: hotová aplikace, pro kterou se
+          nenajde místo ani správce, po obhajobě zanikne a odkaz v práci přestane fungovat.
+        </p>
+        <ul>
+          <li>
+            <strong>Nic nedoporučuje.</strong> Předloží možnosti a u každé důsledky: cenu teď a za tři roky, kdo se stará po absolvování, co s osobními údaji, čí je adresa a jak těžké je odejít. Rozhodujete vy a své
+            zdůvodnění zapíšete.
+          </li>
+          <li>
+            <strong>Důsledky nejsou výsledkem výzkumu.</strong> Vyplývají z technických souvislostí, z podmínek poskytovatelů a z předpisů. Údaje, které se mění (ceny, limity, podmínky), mají u sebe zdroj a datum
+            ověření; celý katalog byl naposledy zkontrolován {formatDate(CATALOG_VERIFIED)}. Před rozhodnutím je ověřte u zdroje.
+          </li>
+          <li>
+            <strong>Požadavky nejsou podložené rešerší.</strong> Samostatný návrh se o přehled literatury neopírá, proto se u každého požadavku uvádí, na čem stojí: zadání, rozhovory s uživateli, norma, literatura,
+            odborný úsudek, nebo zatím jen předpoklad. Výstup to přizná.
+          </li>
+          <li>
+            <strong>Pravidla školy aplikace nezná.</strong> Připraví otázky pro vedoucího, správce IT a pověřence pro ochranu osobních údajů; odpovědi musíte získat sami.
+          </li>
+        </ul>
+        <p className="muted">Výstupem je dokument s návrhem a stručné zadání pro toho, kdo bude stavět. Plán etap je obecný postup, ne návod krok za krokem pro konkrétní aplikaci.</p>
       </section>
       <section className="card">
         <h2>Kde jsou vaše data</h2>
@@ -221,6 +248,10 @@ function About() {
             (ta se řeší sloučením efektů).
           </li>
           <li>Znění kontrolních seznamů a nástrojů je zkrácené. Při práci používejte původní dokumenty, na které aplikace odkazuje.</li>
+          <li>
+            Návrh aplikace zatím nelze propojit s přehledem literatury ve stejném projektu; požadavky se proto neodvozují ze zjištění rešerše. Katalog možností nasazení vychází z českého akademického prostředí a
+            stárne: údaje starší než rok berte jako orientační.
+          </li>
           <li>Citační styl vygenerovaného seznamu literatury vždy zkontrolujte podle požadavků své školy.</li>
         </ul>
       </section>

@@ -1,4 +1,5 @@
-// Datový model aplikace. Projekt = jeden přehled; záznam = jedna nalezená publikace.
+// Datový model aplikace. Projekt má dvě části, které lze použít zvlášť: přehled literatury
+// (rešerši) a návrh aplikace. Záznam = jedna nalezená publikace.
 
 export type ReviewType = 'narrative' | 'scoping' | 'systematic' | 'meta' | 'umbrella';
 
@@ -254,7 +255,76 @@ export interface ChecklistAnswer {
   where: string;
 }
 
+// ---- Návrh aplikace --------------------------------------------------------
+
+export type DesignStepId = 'd-intent' | 'd-reqs' | 'd-profile' | 'd-solution' | 'd-deploy' | 'd-rules' | 'd-plan' | 'd-output';
+
+export type ReqPriority = 'must' | 'should' | 'could';
+
+/**
+ * Odkud požadavek pochází. Samostatný návrh se neopírá o rešerši, proto u každého
+ * požadavku zůstává vidět, na čem stojí; prázdná hodnota = zdroj zatím neuveden.
+ */
+export type ReqSource = '' | 'assignment' | 'users' | 'standard' | 'literature' | 'experience' | 'assumption';
+
+export interface Requirement {
+  id: string;
+  text: string;
+  priority: ReqPriority;
+  source: ReqSource;
+  /** Upřesnění zdroje: kdo požadavek zadal, která norma, s kým proběhl rozhovor. */
+  sourceNote: string;
+}
+
+export interface DesignIntent {
+  /** Jaký problém aplikace řeší. */
+  problem: string;
+  /** Pro koho je určena. */
+  users: string;
+  /** Co s ní má uživatel dokázat. */
+  goal: string;
+  /** Podle čeho se pozná, že aplikace plní účel. */
+  success: string;
+  /** Odpovědi z nabídek (id): v jakém rámci aplikace vzniká, kdo ji staví, zkušenost, jak dlouho má běžet. */
+  context: string;
+  builder: string;
+  experience: string;
+  horizon: string;
+  /** Kdo se o aplikaci postará po skončení projektu. */
+  maintainer: string;
+}
+
+export interface DesignState {
+  intent: DesignIntent;
+  requirements: Requirement[];
+  /** Vlastnosti aplikace: id otázky → id zvolené odpovědi. */
+  profile: Record<string, string>;
+  /** Zvolený typ řešení, zdůvodnění a technologie vlastními slovy. */
+  solution: { type: string; why: string; tech: string };
+  /** Zvolené místo provozu, doplňky (archiv, soubor ke stažení) a zdůvodnění. */
+  deploy: { choice: string; extras: string[]; why: string };
+  /** Odpovědi školy: id otázky → co se podařilo zjistit. */
+  school: Record<string, string>;
+  rules: {
+    licence: string;
+    /** Jaké osobní údaje, proč, kde a jak dlouho. */
+    dataNote: string;
+    /** Komu a jak se aplikace předá, nebo kdy se vypne. */
+    handover: string;
+  };
+  /** Postup etapami: id etapy → hotovo a poznámka. */
+  plan: Record<string, { done: boolean; note: string }>;
+  author: string;
+  institution: string;
+}
+
 // ---- Projekt ---------------------------------------------------------------
+
+/** Které části projekt obsahuje. Starší projekty mají jen rešerši. */
+export interface ProjectParts {
+  review: boolean;
+  design: boolean;
+}
 
 export interface Reviewer {
   id: string;
@@ -289,8 +359,11 @@ export interface Project {
   synthesis: SynthesisState;
   manuscript: ManuscriptState;
   checklist: Record<string, ChecklistAnswer>;
-  done: Partial<Record<StepId, boolean>>;
+  done: Partial<Record<StepId | DesignStepId, boolean>>;
   team: Team;
+  parts: ProjectParts;
+  /** Návrh aplikace; je vyplněn, když projekt tuto část obsahuje. */
+  design?: DesignState;
   /** Kopie projektu určená druhému hodnotiteli: id hodnotitele, který v ní třídí. */
   reviewerCopy?: string;
   /** Ukázkový projekt s předvyplněnými daty. */
@@ -308,7 +381,7 @@ export interface StoredFile {
 /** Podoba zálohy projektu (export / import JSON). */
 export interface ProjectBackup {
   format: 'pruvodce-prehledy';
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   exportedAt: string;
   project: Project;
   records: RecordItem[];

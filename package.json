@@ -1,6 +1,6 @@
 {
   "name": "pruvodce-prehledy",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Výuková aplikace, která krok za krokem provede tvorbou narativního, mapovacího, systematického a zastřešujícího přehledu i metaanalýzy.",
   "type": "module",

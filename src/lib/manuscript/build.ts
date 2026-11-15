@@ -16,7 +16,7 @@ import type { Project, RecordItem, Template } from '../types';
 import { fmt, fmtP, formatDate, lines, plural } from '../util';
 
 export const APP_NAME = 'Průvodce přehledem';
-export const APP_VERSION = '0.2';
+export const APP_VERSION = '0.3';
 
 export type Block =
   | { t: 'h'; level: 1 | 2; text: string }

@@ -19,7 +19,7 @@ export default function App() {
         </a>
         <nav aria-label="Hlavní navigace">
           <a href="#/" className={section === '' || section === 'p' ? 'active' : ''}>
-            Moje přehledy
+            Moje projekty
           </a>
           <a href="#/napoveda/typy" className={route[1] === 'typy' ? 'active' : ''}>
             Typy přehledů

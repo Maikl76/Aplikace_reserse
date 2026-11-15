@@ -1173,3 +1173,265 @@ details > summary {
   padding: 10px;
   background: var(--surface-2, transparent);
 }
+
+/* ---- Průvodce návrhem aplikace ------------------------------------------------ */
+
+.start-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+.start-grid .card {
+  margin: 0;
+}
+
+.start-grid .card h2 {
+  margin-bottom: 4px;
+}
+
+.steps-group {
+  margin: 14px 0 6px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.mini-head {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin: 10px 0 4px;
+}
+
+.card.option.sel {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.card.option.dim > *:not(details):not(.reasons) {
+  opacity: 0.72;
+}
+
+.card.option details {
+  margin-top: 10px;
+}
+
+.card.option details > summary {
+  font-size: 14px;
+  color: var(--accent-text);
+}
+
+.reasons {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--ink-2);
+}
+
+.option-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 4px 24px;
+}
+
+.option-grid ul,
+.card.option ul.small {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.facts {
+  display: grid;
+  gap: 6px;
+}
+
+.fact {
+  border-left: 3px solid var(--line-strong);
+  padding-left: 10px;
+}
+
+dl.cons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px 24px;
+  margin: 10px 0 4px;
+  font-size: 14px;
+}
+
+dl.cons dt {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+dl.cons dd {
+  margin: 2px 0 0;
+}
+
+table.compare td {
+  min-width: 160px;
+}
+
+/* Název možnosti zůstává vidět i při vodorovném posunu. */
+table.compare th:first-child,
+table.compare td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--surface);
+  box-shadow: 1px 0 0 var(--line);
+}
+
+table.compare th:first-child {
+  background: var(--surface-2);
+}
+
+table.compare tr.sel td,
+table.compare tr.sel td:first-child {
+  background: var(--accent-soft);
+}
+
+.questions {
+  display: grid;
+}
+
+.question {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 20px;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+}
+
+.question:first-child {
+  border-top: 0;
+}
+
+.q-label {
+  font-weight: 600;
+}
+
+.question .seg,
+.req-meta .seg {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .question {
+    grid-template-columns: 1fr;
+  }
+}
+
+.req-no {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 650;
+  display: grid;
+  place-items: center;
+  margin-top: 6px;
+}
+
+.req-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 10px;
+  padding-left: 36px;
+}
+
+.req-meta .field {
+  margin: 0;
+}
+
+.req-meta .field.grow {
+  flex: 1 1 220px;
+}
+
+@media (max-width: 720px) {
+  .req-meta {
+    padding-left: 0;
+  }
+}
+
+.school-q {
+  display: grid;
+  gap: 4px;
+}
+
+.school-q textarea {
+  margin-top: 4px;
+}
+
+.card.stage.done {
+  border-color: var(--good);
+}
+
+.open-points {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.open-points li + li {
+  margin-top: 4px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.doc-preview {
+  margin-top: 12px;
+  max-height: 640px;
+  overflow: auto;
+  padding: 18px 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.doc-preview h2 {
+  font-size: 20px;
+  margin: 22px 0 8px;
+}
+
+.doc-preview h2:first-child {
+  margin-top: 0;
+}
+
+.doc-preview h3 {
+  font-size: 16px;
+  margin: 16px 0 6px;
+}
+
+.doc-preview p {
+  margin: 0 0 8px;
+}
+
+.doc-preview .table-wrap {
+  margin-bottom: 12px;
+}
+
+pre.brief {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin: 0;
+  max-height: 460px;
+  overflow: auto;
+}

@@ -8,6 +8,10 @@ U každého kroku vysvětlí, k čemu slouží, jak postupovat a jakých chyb se
 a rozliší, co udělá aplikace a co musí udělat člověk. Z rozhodnutí a dat uživatele pak
 sestaví podklad pro text – odborný článek, bakalářskou nebo diplomovou práci.
 
+Druhý průvodce, [návrh aplikace](#návrh-aplikace), vede od záměru k rozhodnutí, jaký typ
+řešení postavit, kde poběží a kdo se o ně postará po obhajobě. Oba průvodce lze použít
+každý zvlášť.
+
 Aplikace běží celá v prohlížeči. Nemá server ani uživatelské účty; data zůstávají
 v počítači uživatele a ukládají se sama (viz [Kde jsou data](#kde-jsou-data)).
 
@@ -54,6 +58,37 @@ pracovat střídavě na jednom počítači, nebo každý na svém: hlavní hodno
 „balíček“ (kopii projektu bez svých rozhodnutí), ten ho načte, roztřídí a vrátí soubor se
 svými rozhodnutími. Aplikace spočítá shodu a Cohenovo κ, ukáže neshody k vyřešení a vše
 popíše v metodice a výsledcích.
+
+## Návrh aplikace
+
+Průvodce pro toho, kdo chce v rámci práce nebo projektu postavit aplikaci. Vznikl proto,
+že o místě provozu se obvykle rozhoduje až s hotovou aplikací – a ta pak nemá kde běžet
+ani kdo by se o ni staral. Průvodce nic nedoporučuje: předkládá možnosti s důsledky
+a rozhodnutí i jeho zdůvodnění nechává na člověku.
+
+| Krok | Co udělá aplikace | Co dělá člověk |
+|---|---|---|
+| Záměr | zapíše problém, uživatele a okolnosti | určí, jak dlouho má aplikace běžet a kdo se o ni postará |
+| Požadavky | eviduje prioritu a zdroj každého požadavku | píše požadavky a uvádí, o co se opírají |
+| Vlastnosti aplikace | z 13 odpovědí odvodí, zda je potřeba server nebo obchod s aplikacemi, a upozorní na osobní údaje a zdravotnický účel | odpovídá a rozhoduje o rozsahu |
+| Typ řešení | u pěti typů ukáže, zda odpovídají vlastnostem, co umějí, neumějí a co se u nich podcení | volí typ a technologie, zapíše proč |
+| Nasazení | u devíti možností odpoví na stejné otázky (cena teď a za tři roky, kdo se stará po absolvování, osobní údaje, adresa, odchod) a uvede údaje se zdrojem a datem ověření | volí místo provozu a doplňky, zapíše proč |
+| Škola a pravidla | vybere otázky pro vedoucího, správce IT a pověřence | získá odpovědi; dohodne licenci a předání |
+| Plán etap | sestaví etapy s kritériem hotovosti podle zvolených možností | plní a zapisuje průběh |
+| Výstup | dokument s návrhem (Word, Markdown), zadání pro vývojáře nebo nástroj AI, seznam otevřených bodů | probere s vedoucím, předá |
+
+Na čem průvodce stojí:
+
+- **Vhodnost možností** je odvozena z technických souvislostí (bez serveru nelze sdílet
+  data, obchody přijímají jen aplikace pro danou platformu). Není to výsledek výzkumu
+  a průvodce to tak ani nepodává.
+- **Údaje, které se mění** – ceny, limity, podmínky poskytovatelů, znění předpisů – jsou
+  v katalogu (`src/lib/design/catalog.ts`) zapsány se zdrojem a datem ověření a tak se
+  i zobrazují. Při úpravě katalogu je potřeba údaj ověřit u zdroje a datum aktualizovat;
+  test hlídá, že žádný údaj není bez zdroje.
+- **Požadavky v samostatném návrhu nejsou podložené rešerší.** U každého je proto uveden
+  zdroj (zadání, uživatelé, norma, literatura, odborný úsudek, předpoklad) a výstup to
+  přizná.
 
 ## Kde jsou data
 
@@ -128,7 +163,10 @@ src/
     manuscript/          sestavení textu práce a export do Wordu a Markdownu
     content/             výukové texty ke krokům a slovníček
     demo.ts              ukázkové projekty
-  steps/               obrazovky jednotlivých kroků
+    design/              návrh aplikace: katalog možností se zdroji, odvození důsledků,
+                         plán etap, sestavení výstupu, ukázkový návrh
+  steps/               obrazovky kroků přehledu literatury
+  design/              obrazovky kroků návrhu aplikace
   pages/               úvodní stránka, stránka projektu, nápověda
   ui.tsx               sdílené prvky rozhraní
 tests/
@@ -184,6 +222,10 @@ PubMed, Europe PMC a ERIC (`tests/fixtures`).
   zařízeními. Záloha a průběžné ukládání do souboru neobsahují přiložené soubory PDF;
   průběžné ukládání do souboru funguje jen v prohlížečích Chrome, Edge a Opera.
 - Vygenerovaný text je podklad. Autor ho musí zkontrolovat, doplnit a umět obhájit.
+- Návrh aplikace zatím nelze propojit s přehledem literatury ve stejném projektu, takže
+  se požadavky neodvozují ze zjištění rešerše. Katalog možností nasazení vychází z českého
+  akademického prostředí a stárne; pravidla konkrétní školy aplikace nezná. Plán etap je
+  obecný postup, ne návod pro konkrétní aplikaci.
 
 ## Metodické zdroje
 

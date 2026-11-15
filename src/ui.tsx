@@ -1,10 +1,9 @@
 // Sdílené prvky rozhraní: směrování, formulářová pole, průvodce krokem, obrázky.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { GUIDES } from './lib/content/guides';
+import type { Guide } from './lib/content/guides';
 import { svgToPng, type FigMode } from './lib/figures';
 import { TODO } from './lib/manuscript/build';
-import type { ReviewType, StepId } from './lib/types';
 import { download } from './lib/util';
 
 // ---- Směrování přes část adresy za # (funguje i na GitHub Pages) -------------
@@ -176,8 +175,8 @@ export function Stat({ label, value, sub }: { label: string; value: ReactNode; s
 
 // ---- Průvodce krokem ---------------------------------------------------------------
 
-export function GuidePanel({ step, type, done }: { step: StepId; type: ReviewType; done: boolean }) {
-  const g = GUIDES[step];
+/** `guide` = výukový text kroku; `extra` = doplněk pro konkrétní typ přehledu; `step` slouží k zapamatování, zda je průvodce rozbalený. */
+export function GuidePanel({ step, guide: g, extra, done }: { step: string; guide: Guide; extra?: string; done: boolean }) {
   const key = `guide:${step}`;
   const [open, setOpen] = useState(() => {
     const saved = localStorage.getItem(key);
@@ -187,7 +186,6 @@ export function GuidePanel({ step, type, done }: { step: StepId; type: ReviewTyp
     localStorage.setItem(key, open ? '0' : '1');
     setOpen(!open);
   };
-  const extra = g.byType?.[type];
   return (
     <section className="guide" aria-label="Průvodce krokem">
       <button type="button" className="guide-head" onClick={toggle} aria-expanded={open}>
